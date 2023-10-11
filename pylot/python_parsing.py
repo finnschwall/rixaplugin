@@ -44,7 +44,6 @@ def function_signature_to_dict(func):
             arg = {'name': name}
             for doc_param in doc.params:
                 if doc_param.arg_name == name:
-                    print(doc_param.type_name)
                     if doc_param.type_name:
                         arg['type'] = doc_param.type_name
                     if doc_param.description and doc_param.description != "":
