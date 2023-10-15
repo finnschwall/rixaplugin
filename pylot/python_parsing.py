@@ -1,5 +1,7 @@
 import inspect
 from docstring_parser import parse
+import ast
+
 
 def generate_python_doc(func_name, func_dict):
     args = func_dict.get('args', [])
@@ -8,24 +10,24 @@ def generate_python_doc(func_name, func_dict):
     for arg in args:
         arg_type = ""
         if "type" in arg:
-            arg_type = ":"+arg["type"]
-        doc += f"{arg['name']}"+ arg_type+", "
+            arg_type = ":" + arg["type"]
+        doc += f"{arg['name']}" + arg_type + ", "
     for kwarg in kwargs:
         kwarg_type = ""
         if "type" in kwarg:
-            kwarg_type = ":"+kwarg["type"]
+            kwarg_type = ":" + kwarg["type"]
         doc += f"{kwarg['name']}{kwarg_type}={kwarg.get('default', 'None')}, "
     doc = doc.rstrip(', ') + ")\n"
     doc += '"""\n'
     if "description" in func_dict:
-        doc+=func_dict["description"]+"\n"
+        doc += func_dict["description"] + "\n"
     for arg in args:
         if "description" in arg:
             doc += f":param {arg['name']}: {arg.get('description', '')}\n"
     for kwarg in kwargs:
         doc += f":param {kwarg['name']}: {kwarg.get('description', '')}\n"
     if "return" in func_dict:
-        doc += ":return: "+func_dict["return"]
+        doc += ":return: " + func_dict["return"]
     doc += '"""'
     return doc
 
@@ -69,3 +71,45 @@ def function_signature_to_dict(func):
         'args': args,
         'kwargs': kwargs
     }
+
+
+class CodeVisitor(ast.NodeVisitor):
+    def __init__(self, func_map={}, collect=False):
+        self.func_map = func_map
+        self.collect = collect
+        self.variables = {}
+        self.collection = []
+
+    def visit_Call(self, node):
+        print("B")
+        func_name = node.func.id
+        args = [self.variables.get(arg.id, None) if isinstance(arg, ast.Name) else ast.literal_eval(arg) for arg in
+                node.args]
+        kwargs = {kw.arg: self.variables.get(kw.value.id, None) if isinstance(kw.value, ast.Name) else ast.literal_eval(
+            kw.value) for kw in node.keywords}
+
+        # print(f'Function call: {func_name}({args}, {kwargs})')
+        resolved_func = self.func_map.get(func_name)
+        if resolved_func:
+            result = resolved_func(*args, **kwargs)
+            self.variables['__call_res__'] = result
+            return result
+        elif self.collect:
+            self.collection.append({"name": func_name, "args": args, "kwargs": kwargs})
+            # self.variables['__call_res__'] = "INSERT_LATER"
+        else:
+            return f"Function {func_name} not found"
+
+    def visit_Assign(self, node):
+        print("A")
+        if isinstance(node.targets[0], ast.Name):
+            var_name = node.targets[0].id
+            if isinstance(node.value, ast.Call):
+                value = self.visit(node.value)
+            elif isinstance(node.value, ast.Name):
+                value = self.variables.get(node.value.id)
+            else:
+                value = ast.literal_eval(node.value)
+
+            self.variables[var_name] = value
+            # print(f'Variable assignment: {var_name} = {value}')
