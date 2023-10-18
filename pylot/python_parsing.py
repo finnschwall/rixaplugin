@@ -81,7 +81,6 @@ class CodeVisitor(ast.NodeVisitor):
         self.collection = []
 
     def visit_Call(self, node):
-        print("B")
         func_name = node.func.id
         args = [self.variables.get(arg.id, None) if isinstance(arg, ast.Name) else ast.literal_eval(arg) for arg in
                 node.args]
@@ -101,7 +100,6 @@ class CodeVisitor(ast.NodeVisitor):
             return f"Function {func_name} not found"
 
     def visit_Assign(self, node):
-        print("A")
         if isinstance(node.targets[0], ast.Name):
             var_name = node.targets[0].id
             if isinstance(node.value, ast.Call):
