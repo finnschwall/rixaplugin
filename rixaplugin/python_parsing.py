@@ -40,9 +40,15 @@ def function_signature_to_dict(func):
 
     args = []
     kwargs = []
+    has_var_positional = False  # Flag for *args
+    has_var_keyword = False  # Flag for **kwargs
 
     for name, param in params.items():
-        if param.default == inspect.Parameter.empty:
+        if param.kind == inspect.Parameter.VAR_POSITIONAL:
+            has_var_positional = True
+        elif param.kind == inspect.Parameter.VAR_KEYWORD:
+            has_var_keyword = True
+        elif param.default == inspect.Parameter.empty:
             arg = {'name': name}
             for doc_param in doc.params:
                 if doc_param.arg_name == name:
@@ -69,8 +75,50 @@ def function_signature_to_dict(func):
         'name': func.__name__,
         'description': doc.short_description,
         'args': args,
-        'kwargs': kwargs
+        'kwargs': kwargs,
+        'has_var_positional': has_var_positional,
+        'has_var_keyword': has_var_keyword
     }
+
+# def function_signature_to_dict(func):
+#     sig = inspect.signature(func)
+#     params = sig.parameters
+#
+#     doc = parse(func.__doc__)
+#
+#     args = []
+#     kwargs = []
+#
+#     for name, param in params.items():
+#         if param.default == inspect.Parameter.empty:
+#             arg = {'name': name}
+#             for doc_param in doc.params:
+#                 if doc_param.arg_name == name:
+#                     if doc_param.type_name:
+#                         arg['type'] = doc_param.type_name
+#                     if doc_param.description and doc_param.description != "":
+#                         arg['description'] = doc_param.description
+#             args.append(arg)
+#         else:
+#             kwarg = {'name': name, 'default': param.default}
+#             for doc_param in doc.params:
+#                 if doc_param.arg_name == name:
+#                     kwarg_type = doc_param.type_name
+#                     if not kwarg_type:
+#                         if param.default:
+#                             kwarg_type = type(param.default).__name__
+#                     if kwarg_type:
+#                         kwarg['type'] = kwarg_type
+#                     if doc_param.description and doc_param.description != "":
+#                         kwarg['description'] = doc_param.description
+#             kwargs.append(kwarg)
+#
+#     return {
+#         'name': func.__name__,
+#         'description': doc.short_description,
+#         'args': args,
+#         'kwargs': kwargs
+#     }
 
 
 class CodeVisitor(ast.NodeVisitor):
@@ -86,8 +134,6 @@ class CodeVisitor(ast.NodeVisitor):
                 node.args]
         kwargs = {kw.arg: self.variables.get(kw.value.id, None) if isinstance(kw.value, ast.Name) else ast.literal_eval(
             kw.value) for kw in node.keywords}
-
-        # print(f'Function call: {func_name}({args}, {kwargs})')
         resolved_func = self.func_map.get(func_name)
         if resolved_func:
             result = resolved_func(*args, **kwargs)
@@ -95,7 +141,6 @@ class CodeVisitor(ast.NodeVisitor):
             return result
         elif self.collect:
             self.collection.append({"name": func_name, "args": args, "kwargs": kwargs})
-            # self.variables['__call_res__'] = "INSERT_LATER"
         else:
             return f"Function {func_name} not found"
 
