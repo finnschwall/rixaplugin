@@ -2,23 +2,11 @@ import threading
 from .proxy_builder import function_signature_from_spec
 import zmq.asyncio as aiozmq
 import logging
-from . import settings
+from .enums import FunctionPointerType
+import secrets
 
 core_log = logging.getLogger("core")
-
-
-def create_sendable_func_list(func_list):
-    sendable_list = []
-    for i in func_list:
-        sendable_dict = i.copy()
-        sendable_dict.pop("pointer")
-        sendable_list.append(sendable_dict)
-    return sendable_list
-
-
-def filter_functions(func_list, *args, **kwargs):
-    # TODO: Implement filtering
-    return func_list
+from . import settings
 
 
 class PluginMemory:
@@ -40,9 +28,8 @@ class PluginMemory:
         return self.__zmq_context
 
     def __init__(self):
-        self.name = None
         self.function_list = []
-        self.sendable_function_list = []
+        self.plugins = {}
         self.plugin_system_active = False
         self.mode = None
         self.executor = None
@@ -56,12 +43,35 @@ class PluginMemory:
         self._client_connections = set()
         self.debug_mode = False
         self.server = None
+        self.ID = secrets.token_hex(8)
 
-    def add_function(self, signature_dict):
+    def add_function(self, signature_dict, id=None, fn_type = FunctionPointerType.LOCAL):
+        if not id:
+            id = self.ID
         self.function_list.append(signature_dict)
-        sendable_dict = signature_dict.copy()
-        sendable_dict.pop("pointer")
-        self.sendable_function_list.append(sendable_dict)
+        if signature_dict["plugin_name"] in self.plugins:
+            self.plugins[signature_dict["plugin_name"]]["functions"].append(signature_dict)
+        else:
+            # create a plugin entry
+            plugin = {"name": signature_dict["plugin_name"], "functions": [signature_dict], "id": id,
+                      "type": fn_type, "is_alive": True, "active_tasks": 0}
+            self.plugins[signature_dict["plugin_name"]] = plugin
+
+    def add_remote_functions(self, func_list, plugin_id, origin_is_client=False):
+        fn_type = FunctionPointerType.REMOTE
+        if origin_is_client:
+            fn_type |= FunctionPointerType.CLIENT
+        else:
+            fn_type |= FunctionPointerType.SERVER
+        for i in func_list:
+            i["type"] = fn_type
+            i["pointer"] = plugin_id
+            self.add_function(i, plugin_id, fn_type)
+        #     self.function_list.append(i)
+        #     remote_func_list.append(i)
+        # remote_plugin = {"name": remote_name, "functions": remote_func_list, "id": plugin_id, "type": fn_type,
+        #                  "is_alive": True, "active_tasks": 0}
+        # self.plugins[remote_name] = remote_plugin
 
     def force_shutdown(self):
         core_log.error("Force shutdown of plugin system! This should not happen!")
@@ -96,6 +106,15 @@ class PluginMemory:
         # readable_str = "\n".join([str(i) + ": " + str(d) for i, d in enumerate(self.function_list, 1)])
         readable_str = "\n".join([function_signature_from_spec(i) for i in self.function_list])
         return f"{self.__class__.__name__} containing:\n{readable_str}"
+
+    def get_sendable_func_list(self, remote_id):
+        # Filter out
+        sendable_list = []
+        for i in self.function_list:
+            sendable_dict = i.copy()
+            sendable_dict.pop("pointer")
+            sendable_list.append(sendable_dict)
+        return sendable_list
 
     def clean(self):
         with self.lock:

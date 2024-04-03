@@ -42,6 +42,8 @@ async def init_plugin_system(mode=DebugLocal, num_workers=4, debug= False):
     _memory.plugin_system_active = True
 
 
+
+
 async def execute_local(name, args, kwargs,  identity, request_id, call_type, return_future=False):
     if not _memory.plugin_system_active:
         raise Exception("Plugin system not initialized")

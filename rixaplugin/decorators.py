@@ -5,6 +5,7 @@ from .memory import _memory
 import asyncio
 import functools
 import contextvars
+from .enums import FunctionPointerType
 
 # def universal_decorator(func):
 #     @functools.wraps(func)
@@ -26,11 +27,10 @@ import contextvars
 def plugfunc(api_as_arg=True, api_as_kwarg=False):
     def plugin_method(original_function):
         dic_entry = function_signature_to_dict(original_function)
-        dic_entry["type"] = "local"
+        dic_entry["type"] = FunctionPointerType.LOCAL
         dic_entry["pointer"] = original_function
-
-        is_coroutine = asyncio.iscoroutinefunction(original_function)
-
+        dic_entry["coroutine"] = asyncio.iscoroutinefunction(original_function)
+        dic_entry["plugin_name"] = original_function.__module__
         _memory.add_function(dic_entry)
 
         # if is_coroutine:
