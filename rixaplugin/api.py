@@ -159,19 +159,22 @@ class JupyterAPI(BaseAPI):
     async def show_message(self, message, message_type="info"):
         self.display(self.HTML(f"<div class=\"alert alert-{message_type}\" role=\"alert\">{message}</div>"))
 
-
+def _is_api_present():
+    return __plugin_ctx.get() is not None
 
 
 __plugin_ctx = contextvars.ContextVar('__plugin_api', default=BaseAPI(0, 0, 0))
 """If you don't know what this does, you should probably not touch it"""
 
+def _call_function_async(func, args, kwargs, api_obj=None, return_future = True):
+
 
 # set ctx vars for API
-def _call_function(func, args, kwargs, request_id, identity, callstack_type : CallstackType):
-    call_api = BaseAPI(request_id, identity)
-    # if callstack_type & CallstackType.LOCAL:
-    #     if callstack_type & CallstackType.ASYNCIO:
-
-    __plugin_ctx.set(call_api)
-
-    return __plugin_ctx.run(func, *args, **kwargs)
+# def _call_function(func, args, kwargs, request_id, identity, callstack_type : CallstackType):
+#     call_api = BaseAPI(request_id, identity)
+#     # if callstack_type & CallstackType.LOCAL:
+#     #     if callstack_type & CallstackType.ASYNCIO:
+#
+#     __plugin_ctx.set(call_api)
+#
+#     return __plugin_ctx.run(func, *args, **kwargs)

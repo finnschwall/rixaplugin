@@ -1,3 +1,4 @@
+import io
 import logging
 import sys
 
@@ -41,6 +42,26 @@ class TerminalFormat:
             return f"<p style='color:rgb({x[0]}, {x[1]}, {x[2]})'>"
         ctrl = "38" if foreground else "48"
         return f"\033[{ctrl};2;{r};{g};{b}m"
+
+class RIXAFilter(logging.Filter):
+    def __init__(self):
+        super(RIXAFilter, self).__init__()
+        self.session_id = None
+
+    def filter(self, record):
+        # Attach ID as attribute to log record. But memory may not be initialized yet
+        if not self.session_id:
+            try:
+                from .memory import _memory
+                self.session_id = _memory.ID[-4:]
+            except ImportError:
+                pass
+        if self.session_id:
+            record.session_id = self.session_id
+        else:
+            record.session_id = "NO_ID"
+
+        return True
 
 
 class RIXALogger(logging.Logger):
@@ -143,38 +164,6 @@ class RIXAFormatter(logging.Formatter):
     }
 
     def format(self, record):
-        # formatter = logging.Formatter(self.fmt_string, self.time_fmt)
-        # return formatter.format(record)
-        is_exception = getattr(record, "is_exception", 0)
-        if is_exception:
-            print(is_exception)
-
-        if is_exception:
-            exc = getattr(record, "exc", 0)
-            # exc = record.exc_info[1]
-
-            if self.colormode == "html":
-                exc_msg = format_exception(exc, html=True)
-                record.msg = record.msg.replace("\n", "<br>")
-                col = self.FORMATS_HTML.get(record.levelno)
-                res = "</p>"
-                newline = "<br>"
-            elif self.colormode == "console":
-                exc_msg = format_exception(exc)
-                col = self.FORMATS_CONSOLE.get(record.levelno)
-                res = TerminalFormat.NC
-                newline = "\n"
-            else:
-                exc_msg = format_exception(exc, without_color=True)
-                col = ""
-                res = ""
-                newline = "\n"
-            custom_msg = record.msg
-            record.msg = exc_msg
-            log_fmt = col + custom_msg + res + "%(message)s" + newline + col + "-------" + \
-                      newline + "%(levelname)s %(session_id)s-%(asctime)s-%(name)s-(File \"%(pathname)s\", line %(lineno)d)" + res
-            formatter = logging.Formatter(log_fmt, '%a %H:%M:%S')
-            return formatter.format(record)
 
         if self.colormode == "html":
             log_fmt = self.FORMATS_HTML.get(record.levelno) + self.fmt_string + "</p>"
@@ -186,4 +175,42 @@ class RIXAFormatter(logging.Formatter):
         return formatter.format(record)
 
 
+class JupyterLoggingHandler(logging.Handler):
+    def __init__(self, max_messages=10):
+        super().__init__()
+        self.output_stream = io.StringIO()
+        from .settings import LOG_FMT, LOG_TIME_FMT
+        # self.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        self.setFormatter(RIXAFormatter("html", LOG_FMT, LOG_TIME_FMT))
+        # add rixafilter
+        self.addFilter(RIXAFilter())
+        self.messages = []
+        self.max_messages = max_messages
+        self.display_id = 'jupyter_logging_handler'  # Unique ID for the display object
+        from IPython.display import display, update_display, HTML
+        self.update_display = update_display
+        self.HTML = HTML
+        # Initial display with empty content, using the unique display_id
+        display('', display_id=self.display_id)
 
+    def emit(self, record):
+        # Format the record and append it to the messages list
+        with open("/home/finn/Fraunhofer/other stuff/network/a.txt", "a") as f:
+            f.write(str(record.__dict__))
+            f.write("\n\n\n")
+
+        if record.levelno<10:
+            return
+        message = self.format(record)
+        self.messages.append(message)
+
+        # Ensure we only keep the last `max_messages` messages
+        self.messages = self.messages[-self.max_messages:]
+
+        # Write the truncated message list to the output stream
+        self.output_stream.seek(0)
+        self.output_stream.truncate()
+        self.output_stream.write('\n'.join(self.messages))
+
+        # Update the display with the new content
+        self.update_display(self.HTML(self.output_stream.getvalue()), display_id=self.display_id)

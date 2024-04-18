@@ -3,7 +3,8 @@ from docstring_parser import parse
 import ast
 
 
-def generate_python_doc(func_name, func_dict):
+def generate_python_doc(func_dict, include_docstr=True):
+    func_name = func_dict.get('name', "UNKNOWN")
     args = func_dict.get('args', [])
     kwargs = func_dict.get('kwargs', [])
     doc = f"def {func_name}("
@@ -17,18 +18,21 @@ def generate_python_doc(func_name, func_dict):
         if "type" in kwarg:
             kwarg_type = ":" + kwarg["type"]
         doc += f"{kwarg['name']}{kwarg_type}={kwarg.get('default', 'None')}, "
-    doc = doc.rstrip(', ') + ")\n"
-    doc += '"""\n'
-    if "description" in func_dict:
-        doc += func_dict["description"] + "\n"
-    for arg in args:
-        if "description" in arg:
-            doc += f":param {arg['name']}: {arg.get('description', '')}\n"
-    for kwarg in kwargs:
-        doc += f":param {kwarg['name']}: {kwarg.get('description', '')}\n"
-    if "return" in func_dict:
-        doc += ":return: " + func_dict["return"]
-    doc += '"""'
+    doc = doc.rstrip(', ') + ")"
+
+    if include_docstr:
+        docstr = ""
+        if "description" in func_dict and func_dict["description"] is not None and func_dict["description"] != "":
+            docstr += func_dict["description"] + "\n"
+        for arg in args:
+            if "description" in arg:
+                docstr += f":param {arg['name']}: {arg.get('description', '')}\n"
+        for kwarg in kwargs:
+            docstr += f":param {kwarg['name']}: {kwarg.get('description', '')}\n"
+        if "return" in func_dict:
+            docstr += ":return: " + func_dict["return"]
+        if docstr != "":
+            doc += '\n"""\n' + docstr + '"""'
     return doc
 
 
@@ -54,6 +58,9 @@ def function_signature_to_dict(func):
                 if doc_param.arg_name == name:
                     if doc_param.type_name:
                         arg['type'] = doc_param.type_name
+                    else:
+                        if param.annotation != inspect.Parameter.empty:
+                            arg['type'] = param.annotation.__name__
                     if doc_param.description and doc_param.description != "":
                         arg['description'] = doc_param.description
             args.append(arg)
@@ -63,8 +70,10 @@ def function_signature_to_dict(func):
                 if doc_param.arg_name == name:
                     kwarg_type = doc_param.type_name
                     if not kwarg_type:
-                        if param.default:
-                            kwarg_type = type(param.default).__name__
+                        if param.annotation != inspect.Parameter.empty:
+                            kwarg_type = param.annotation.__name__
+                        # if param.default:
+                            # kwarg_type = type(param.default).__name__
                     if kwarg_type:
                         kwarg['type'] = kwarg_type
                     if doc_param.description and doc_param.description != "":
@@ -79,6 +88,7 @@ def function_signature_to_dict(func):
         'has_var_positional': has_var_positional,
         'has_var_keyword': has_var_keyword
     }
+
 
 # def function_signature_to_dict(func):
 #     sig = inspect.signature(func)

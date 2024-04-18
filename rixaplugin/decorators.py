@@ -29,20 +29,25 @@ def plugfunc(api_as_arg=True, api_as_kwarg=False):
         dic_entry = function_signature_to_dict(original_function)
         dic_entry["type"] = FunctionPointerType.LOCAL
         dic_entry["pointer"] = original_function
-        dic_entry["coroutine"] = asyncio.iscoroutinefunction(original_function)
-        dic_entry["plugin_name"] = original_function.__module__
+        is_coroutine = asyncio.iscoroutinefunction(original_function)
+        if is_coroutine:
+            dic_entry["type"] |= FunctionPointerType.ASYNC
+        else:
+            dic_entry["type"] |= FunctionPointerType.SYNC
+        # dic_entry["coroutine"] = asyncio.iscoroutinefunction(original_function)
+        dic_entry["plugin_name"] = original_function.__module__.split(".")[-1]
         _memory.add_function(dic_entry)
 
-        # if is_coroutine:
-        #     @functools.wraps(original_function)
-        #     async def wrapper_func(*args, **kwargs):
-        #         return await original_function(*args, **kwargs)
-        # else:
-        #     @functools.wraps(original_function)
-        #     def wrapper_func(*args, **kwargs):
-        #         return original_function(*args, **kwargs)
-
-        return original_function
+        if is_coroutine:
+            @functools.wraps(original_function)
+            async def wrapper_func(*args, **kwargs):
+                return await original_function(*args, **kwargs)
+        else:
+            @functools.wraps(original_function)
+            def wrapper_func(*args, **kwargs):
+                return original_function(*args, **kwargs)
+        plugin_method._original_function = original_function
+        return wrapper_func
 
     return plugin_method
 

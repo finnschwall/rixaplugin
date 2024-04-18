@@ -24,9 +24,12 @@ class FunctionPointerType(AutoNumber):
     NONE = 0
     LOCAL = auto()
     REMOTE = auto()
+    INDIRECT = auto() # remote that can only be reached through another remote
     # both are remote, but lookup is different
     SERVER = auto()
     CLIENT = auto()
+    SYNC = auto()
+    ASYNC = auto()
 
 class HeaderFlags(AutoNumber):
     NONE = 0

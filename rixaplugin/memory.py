@@ -1,5 +1,5 @@
 import threading
-from .proxy_builder import function_signature_from_spec
+from .python_parsing import generate_python_doc
 import zmq.asyncio as aiozmq
 import logging
 from .enums import FunctionPointerType
@@ -44,8 +44,9 @@ class PluginMemory:
         self.debug_mode = False
         self.server = None
         self.ID = secrets.token_hex(8)
+        self.max_queue = 10
 
-    def add_function(self, signature_dict, id=None, fn_type = FunctionPointerType.LOCAL):
+    def add_function(self, signature_dict, id=None, fn_type=FunctionPointerType.LOCAL):
         if not id:
             id = self.ID
         self.function_list.append(signature_dict)
@@ -57,7 +58,25 @@ class PluginMemory:
                       "type": fn_type, "is_alive": True, "active_tasks": 0}
             self.plugins[signature_dict["plugin_name"]] = plugin
 
+    def add_plugin(self, plugin_dict, identity, remote_origin, origin_is_client=False):
+        # add functions to function list
+        for i in plugin_dict.values():
+            i["remote_id"] = identity
+            i["remote_origin"] = remote_origin
+            if origin_is_client:
+                i["type"] |= FunctionPointerType.CLIENT
+            else:
+                i["type"] |= FunctionPointerType.SERVER
+            for j in i["functions"]:
+                j["type"] = i["type"]
+                j["remote_id"] = identity
+                j["remote_origin"] = remote_origin
+                self.function_list.append(j)
+        self.plugins = {**self.plugins, **plugin_dict}
+
+
     def add_remote_functions(self, func_list, plugin_id, origin_is_client=False):
+        # DEPRECATED. Use add_plugin instead
         fn_type = FunctionPointerType.REMOTE
         if origin_is_client:
             fn_type |= FunctionPointerType.CLIENT
@@ -104,11 +123,62 @@ class PluginMemory:
 
     def __str__(self):
         # readable_str = "\n".join([str(i) + ": " + str(d) for i, d in enumerate(self.function_list, 1)])
-        readable_str = "\n".join([function_signature_from_spec(i) for i in self.function_list])
-        return f"{self.__class__.__name__} containing:\n{readable_str}"
+        readable_str = f"Mode: {self.mode}, ID: {self.ID}, Debug: {self.debug_mode}\n"
+        readable_str += f"{self.executor.queue.qsize()} tasks in queue\n" if self.executor else "No executor\n"
+        readable_str += "Max queue size: " + str(self.max_queue) + "\n" if self.executor else ""
+        readable_str += "\nPlugins:\n" + self.pretty_print_plugins()
+        return readable_str
+
+    def pretty_print_plugins(self):
+        readable_str = ""
+        for name, entry in self.plugins.items():
+            readable_str += f"{name}\nID:..{entry['id'][-5:]}, TYPE:{entry['type']}, ALIVE:{entry['is_alive']}, N_TASKS: {entry['active_tasks']}\n"
+            for i in entry["functions"]:
+                readable_str += f"\t{generate_python_doc(i, include_docstr=False)}\n"
+        return readable_str
+
+
+    def get_sendable_plugins(self, remote_id=-1):
+        sendable_dict = {}
+
+        for key, value in self.plugins.items():
+            if value["type"] & FunctionPointerType.REMOTE and not settings.ALLOW_NETWORK_RELAY:
+                continue
+            # prevent the remote plugin from receiving its own functions
+            if value["id"] == remote_id:
+                continue
+            sendable_plugin = value.copy()
+            if sendable_plugin["type"] & FunctionPointerType.LOCAL:
+                sendable_plugin["type"] = FunctionPointerType.REMOTE
+            elif sendable_plugin["type"] & FunctionPointerType.REMOTE:
+                sendable_plugin["type"] = FunctionPointerType.INDIRECT | FunctionPointerType.REMOTE
+            sendable_dict[key] = sendable_plugin
+
+        # clean up i.e. remove pointers and other unnecessary data from function entries
+        for key,val in sendable_dict.items():
+            val["functions"] = [j.copy() for j in val["functions"]]
+            for j in val["functions"]:
+                j.pop("pointer", None)
+                if j["type"] & FunctionPointerType.LOCAL:
+                    j["type"] = FunctionPointerType.REMOTE
+                elif j["type"] & FunctionPointerType.REMOTE:
+                    j["type"] = FunctionPointerType.INDIRECT | FunctionPointerType.REMOTE
+
+        return sendable_dict
 
     def get_sendable_func_list(self, remote_id):
-        # Filter out
+        # DEPRECATED AND TO BE REMOVED. Use get_sendable_plugin_list instead
+        if settings.ALLOW_NETWORK_RELAY:
+            # only send functions that are not remote
+            sendable_list = []
+            for i in self.function_list:
+                if i["type"] & FunctionPointerType.REMOTE:
+                    continue
+                sendable_dict = i.copy()
+                sendable_dict.pop("pointer")
+                sendable_list.append(sendable_dict)
+            return sendable_list
+
         sendable_list = []
         for i in self.function_list:
             sendable_dict = i.copy()

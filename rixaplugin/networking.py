@@ -10,17 +10,16 @@ from .proxy_builder import construct_importable
 import warnings
 import msgpack
 from .memory import _memory
-from .enums import HeaderFlags
+from .enums import HeaderFlags, FunctionPointerType
 import zmq.auth
 import logging
 from .utils import *
-
 import asyncio
 import zmq
 import zmq.asyncio as aiozmq
 
 # logging.basicConfig(level=logging.DEBUG)
-network_log = logging.getLogger("net")
+network_log = logging.getLogger("network")
 
 
 # network_log.setLevel(0)
@@ -82,17 +81,18 @@ class NetworkAdapter:
                "request_id": request_id}
         await self.con.send_multipart([identity, msgpack.packb(ret)])
 
-    async def call_remote_function(self, func_name, args=None, kwargs=None, one_way=False, return_time_estimate=False):
+    async def call_remote_function(self, plugin_entry, args=None, kwargs=None, one_way=False,
+                                   return_time_estimate=False):
         if args is None:
             args = []
         if kwargs is None:
             kwargs = {}
 
-        request_id = identifier_from_signature(func_name, args, kwargs)
+        request_id = identifier_from_signature(plugin_entry["name"], args, kwargs)
         message = {
             "HEAD": HeaderFlags.FUNCTION_CALL,
             "request_id": request_id,
-            "func_name": func_name,
+            "func_name": plugin_entry["name"],
             "args": args,
             "kwargs": kwargs
         }
@@ -108,7 +108,11 @@ class NetworkAdapter:
 
         serialized_message = msgpack.packb(message)
 
-        await self.con.send(serialized_message)
+        remote_func_type = plugin_entry["type"]
+        if remote_func_type & FunctionPointerType.CLIENT:
+            await self.con.send(serialized_message)
+        elif remote_func_type & FunctionPointerType.SERVER:
+            await self.con.send_multipart([plugin_entry["remote_id"], serialized_message])
 
         # time estimate is always awaited
         # need to check whether this makes sense or if call without acknowledgement is possible
@@ -156,11 +160,14 @@ class NetworkAdapter:
                 if header_flags & HeaderFlags.ACKNOWLEDGE:
                     network_log.debug(f"Acknowledging connection")
                     ret = {"HEAD": HeaderFlags.ACKNOWLEDGE | HeaderFlags.SERVER, "ID": _memory.ID}
-                    if "plugin_signatures" in msg:
-                        _memory.add_remote_functions(msg["plugin_signatures"], identity, origin_is_client=True)
+
 
                     if "request_info" in msg and msg["request_info"] == "plugin_signatures":
-                        ret["plugin_signatures"] = _memory.get_sendable_func_list()  # sendable_function_list
+                        ret["plugin_signatures"] = _memory.get_sendable_plugins()  # sendable_function_list
+
+                    if "plugin_signatures" in msg:
+                        _memory.add_plugin(msg["plugin_signatures"], identity, self, origin_is_client=True)
+
                     await self.con.send_multipart(
                         [identity, msgpack.packb(ret)])
 
@@ -168,7 +175,7 @@ class NetworkAdapter:
                 elif header_flags & HeaderFlags.FUNCTION_CALL:
                     network_log.debug(f"Received function call from {identity.hex()}")
                     try:
-                        future = asyncio.create_task(execute_local(
+                        future = asyncio.create_task(execute_networked(
                             msg["func_name"], msg["args"], msg["kwargs"], identity, msg["request_id"], 3, False))
                         ret = {"HEAD": HeaderFlags.TIME_ESTIMATE_AND_ACKNOWLEDGEMENT, "request_id": msg["request_id"]}
                         await self.con.send_multipart([identity, msgpack.packb(ret)])
@@ -199,7 +206,7 @@ class NetworkAdapter:
                     else:
                         network_log.warning(f"Received time estimate for unknown request id: {request_id}")
             except Exception as e:
-                network_log.error(f"Message header faulty: Error:\n{e}")
+                network_log.exception(f"Message header faulty: Error:\n{e}")
                 self.error_count += 1
                 if self.error_count > 10 and not _memory.debug_mode:
                     network_log.error("Incoming requests are invalid. This can't stem from this library. "
@@ -239,7 +246,7 @@ async def create_and_start_plugin_client(server_address, port=2809, raise_on_con
 
         packed_msg = msgpack.packb(
             {"HEAD": HeaderFlags.ACKNOWLEDGE | HeaderFlags.CLIENT, "request_info": "plugin_signatures",
-             "plugin_signatures": _memory.get_sendable_func_list(), "ID": _memory.ID, })
+             "plugin_signatures": _memory.get_sendable_plugins(), "ID": _memory.ID, })
         await client.con.send(packed_msg)
         evts = await client.con.poll(1000)
         if evts == 0:
@@ -258,8 +265,8 @@ async def create_and_start_plugin_client(server_address, port=2809, raise_on_con
                 raise Exception(
                     "Connection established but failed to receive acknowledge message. This shouldn't happen.")
 
-            _memory.add_remote_functions(msg.get("plugin_signatures"), client,
-                                         origin_is_client=False)
+            _memory.add_plugin(msg.get("plugin_signatures"), client, client,
+                               origin_is_client=False)
 
 
         except zmq.ZMQError as e:
@@ -305,4 +312,4 @@ class PluginClient(NetworkAdapter):
     #     construct_importable(name, self.remote_function_signatures, description="Remote plugin module")
 
 
-from .executor import execute_local, FunctionNotFoundException
+from .executor import execute_networked, FunctionNotFoundException

@@ -110,7 +110,7 @@ def create_function_with_signature(name, args, kwargs, varkw, return_annotation=
 #     return full_signature
 
 
-def function_signature_from_spec(func_dict, include_docs=True, include_types=True):
+def __function_signature_from_spec(func_dict, include_docs=True, include_types=True):
     """
     Generates a string representation of a function based on the given dictionary.
 

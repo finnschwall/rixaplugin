@@ -36,6 +36,12 @@ WORKING_DIRECTORY = os.path.abspath(config_dir)
 
 DEBUG_MODE = config("DEBUG_MODE", default=False, cast=bool)
 
+ALLOW_NETWORK_RELAY = config("ALLOW_NETWORK_RELAY", default=True, cast=bool)
+"""If there are servers A B and C, where B is this server, this setting controls if A can send messages to C through B,
+and vice versa.
+Usually this is only activated for the main server.
+If activated on most/all servers, a decentralized system is possible (at cost of performance)."""
+
 ALLOWED_PLUGIN_HOSTS = config("ALLOWED_HOSTS", default="localhost", cast=Csv())
 """List of domains which the plugin server serves. '*' means all connections will be accepted.
 """
@@ -43,6 +49,8 @@ ALLOWED_PLUGIN_HOSTS = config("ALLOWED_HOSTS", default="localhost", cast=Csv())
 logfile_path = config("LOG_LOC", default="log/main")
 """Where logfile is located. Without starting `/` it is considered relative to the working directory.
 """
+
+
 LOG_FILE_TYPE = config("LOG_FILE_TYPE", default="txt", cast=Choices(["none", "html", "txt"]))
 """Either none, html or txt. None means no log files are created. html supports color formatting while. 
 """
@@ -54,18 +62,22 @@ DISABLED_LOGGERS = config("DISABLED_LOGGERS", cast=Csv(), default='')
 """
 
 DISABLED_LOGGERS += ['daphne.http_protocol', 'daphne.server', 'daphne.ws_protocol', 'django.channels.server',
-                     'asyncio', 'openai', "urllib3", "matplotlib", "sentence_transformers.SentenceTransformer"]
-disabled_logger_conf = {i: {'level': 'WARNING'} for i in DISABLED_LOGGERS}
+                     'asyncio', 'openai', "urllib3", "matplotlib", "sentence_transformers.SentenceTransformer",
+                     "IPKernelApp","ipykernel","Comm","ipykernel.comm"]
+# disabled_logger_conf = {i: {'level': 'WARNING'} for i in DISABLED_LOGGERS}
+for i in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
+    if i.name in DISABLED_LOGGERS:
+        i.disabled = True
 
 LOG_FMT = config("LOG_FMT",
                  # default="%(levelname)s:%(name)s \"%(message)s\" %(asctime)s-(File \"%(filename)s\", line %(lineno)d)"
-default="%(levelname)s:%(name)s \"%(message)s\" (File \"%(filename)s\", line %(lineno)d)"
+default="%(levelname)s:%(name)s:%(session_id)s \"%(message)s\" (File \"%(filename)s\", line %(lineno)d)"
                  )
 """Format to be used for logging. See https://docs.python.org/3/library/logging.html#logrecord-attributes
 There is an additional session_id attribute. It's behaviour is defined by LOG_UID_MODE
 """
 
-MAX_LOG_SIZE = config("MAX_LOG_SIZE", default=16, cast=int)
+MAX_LOG_SIZE = config("MAX_LOG_SIZE", default=200, cast=int)
 """Max file size in kb before new logfile will be created. Normally there are 2 backup logfiles.
 1 kb~6-9 log messages for txt and ~4-7 for html
 """
@@ -95,16 +107,16 @@ LOGGING = {
             "time_fmt": LOG_TIME_FMT
         }
     },
-    # 'filters': {
-    #     'RIXAFilter': {
-    #         '()': 'plugins.log_helper.RIXAFilter',
+    'filters': {
+        'RIXAFilter': {
+            '()': 'rixaplugin.rixalogger.RIXAFilter',
     #         "uid_mode": LOG_UID_MODE
-    #     }
-    # },
+        }
+    },
     'handlers': {
         'console': {
             'level': 'DEBUG',
-            # 'filters': ['RIXAFilter'],
+            'filters': ['RIXAFilter'],
             'class': 'logging.StreamHandler',
             'formatter': 'RIXAConsole'
         },
@@ -114,7 +126,7 @@ LOGGING = {
             'backupCount': 2,
             'filename': logfile_path,
             'level': 'DEBUG',
-            # 'filters': ['RIXAFilter'],
+            'filters': ['RIXAFilter'],
             'formatter': 'RIXAFile',
         } if LOG_FILE_TYPE != "none" else {'class': "logging.NullHandler"}
     },
