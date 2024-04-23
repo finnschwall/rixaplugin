@@ -1,10 +1,9 @@
-from .python_parsing import function_signature_to_dict
+from rixaplugin.pylot.python_parsing import function_signature_to_dict
 from warnings import warn
 from .memory import _memory
 # _memory = PluginMemory()
 import asyncio
 import functools
-import contextvars
 from .enums import FunctionPointerType
 
 # def universal_decorator(func):
@@ -26,6 +25,8 @@ from .enums import FunctionPointerType
 
 def plugfunc(api_as_arg=True, api_as_kwarg=False):
     def plugin_method(original_function):
+        if _memory.plugin_system_active:
+            raise Exception("Cant add plugins when plugin system has been started!")
         dic_entry = function_signature_to_dict(original_function)
         dic_entry["type"] = FunctionPointerType.LOCAL
         dic_entry["pointer"] = original_function
@@ -54,9 +55,9 @@ def plugfunc(api_as_arg=True, api_as_kwarg=False):
 
 def worker_init():
     def plugin_method(original_function):
-        if _memory.worker_init is not None:
-            warn("Worker init function already exists!\nWill be overriden")
-        _memory.worker_init = original_function
+        # if _memory.worker_init is not None:
+        #     warn("Worker init function already exists!\nWill be overriden")
+        _memory.worker_init.append(original_function)
         return original_function
 
     return plugin_method
@@ -66,7 +67,7 @@ def global_init():
     def plugin_method(original_function):
         if _memory.global_init is not None:
             warn("Global init function already exists!\nWill be overriden")
-        _memory.global_init = original_function
+        _memory.global_init.append(original_function)
         return original_function
 
     return plugin_method

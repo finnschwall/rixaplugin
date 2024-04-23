@@ -31,10 +31,34 @@ from . import rixalogger
 #                                 f"Is the working dir read only?")
 config_dir = "."
 
-config = AutoConfig()#Config(RepositoryEnv(os.path.join(config_dir, "config.ini")))
-WORKING_DIRECTORY = os.path.abspath(config_dir)
+#Config(RepositoryEnv(os.path.join(config_dir, "config.ini")))
 
-DEBUG_MODE = config("DEBUG_MODE", default=False, cast=bool)
+
+try:
+    config_dir = os.environ["RIXA_WD"]
+    config = Config(RepositoryEnv(os.path.join(config_dir, "config.ini")))
+except KeyError:
+    current_directory = os.getcwd()
+    files = os.listdir(current_directory)
+    if "config.ini" in files:
+        config_dir = current_directory
+        config = Config(RepositoryEnv(os.path.join(config_dir, "config.ini")))
+    else:
+        config_dir = os.path.abspath(config_dir)
+        config = AutoConfig()
+        import warnings
+        warnings.warn("RIXA_WD not set. Using current directory as working directory.")
+        # raise Exception(
+        #     f"The folder '{current_directory}' from which you started the server does not seem to be a RIXA working directory."
+        #     f"Either change into a working dir or set the 'RIXA_WD' env var.")
+#
+#
+# WORKING_DIRECTORY = os.path.abspath(config_dir)
+
+
+
+DEBUG = config("DEBUG_MODE", default=True, cast=bool)
+
 
 ALLOW_NETWORK_RELAY = config("ALLOW_NETWORK_RELAY", default=True, cast=bool)
 """If there are servers A B and C, where B is this server, this setting controls if A can send messages to C through B,
@@ -51,7 +75,9 @@ logfile_path = config("LOG_LOC", default="log/main")
 """
 
 
-LOG_FILE_TYPE = config("LOG_FILE_TYPE", default="txt", cast=Choices(["none", "html", "txt"]))
+PLUGIN_REGISTRY = config("PLUGIN_REGISTRY", default="/tmp/plugin_registry.json")
+
+LOG_FILE_TYPE = config("LOG_FILE_TYPE", default="none", cast=Choices(["none", "html", "txt"]))
 """Either none, html or txt. None means no log files are created. html supports color formatting while. 
 """
 if LOG_FILE_TYPE != "none" and logfile_path[0] != "/":
@@ -64,10 +90,10 @@ DISABLED_LOGGERS = config("DISABLED_LOGGERS", cast=Csv(), default='')
 DISABLED_LOGGERS += ['daphne.http_protocol', 'daphne.server', 'daphne.ws_protocol', 'django.channels.server',
                      'asyncio', 'openai', "urllib3", "matplotlib", "sentence_transformers.SentenceTransformer",
                      "IPKernelApp","ipykernel","Comm","ipykernel.comm"]
-# disabled_logger_conf = {i: {'level': 'WARNING'} for i in DISABLED_LOGGERS}
-for i in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
-    if i.name in DISABLED_LOGGERS:
-        i.disabled = True
+disabled_logger_conf = {i: {'level': 'WARNING'} for i in DISABLED_LOGGERS}
+# for i in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
+#     if i.name in DISABLED_LOGGERS:
+#         i.disabled = True
 
 LOG_FMT = config("LOG_FMT",
                  # default="%(levelname)s:%(name)s \"%(message)s\" %(asctime)s-(File \"%(filename)s\", line %(lineno)d)"
@@ -115,7 +141,7 @@ LOGGING = {
     },
     'handlers': {
         'console': {
-            'level': 'DEBUG',
+            'level': 'WARNING',
             'filters': ['RIXAFilter'],
             'class': 'logging.StreamHandler',
             'formatter': 'RIXAConsole'
@@ -138,4 +164,5 @@ LOGGING = {
         },
     }
 }
+LOGGING['loggers'].update(disabled_logger_conf)
 logging.config.dictConfig(LOGGING)

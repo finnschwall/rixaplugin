@@ -1,6 +1,11 @@
-from rixaplugin import plugfunc, PluginVariable
-from rixaplugin.api import PublicSyncApi as api
+from rixaplugin.decorators import plugfunc
+from rixaplugin.variables import PluginVariable
+# from rixaplugin.api import PublicSyncApi as api
+import rixaplugin.public.sync_api as api
+import time
 
+
+# import sync_api
 
 @plugfunc()
 def test_html_display():
@@ -39,7 +44,7 @@ def test_log():
 
 
 @plugfunc()
-def test_signature_and_doc_compile(var1, another_var : str, var3 = 5, var4 : int = 6):
+def test_signature_and_doc_compile(var1, another_var: str, var3=5, var4: int = 6):
     """
     This is a test function to check if the signature and docstring are compiled correctly
     :param var1: This is a test parameter
@@ -48,6 +53,34 @@ def test_signature_and_doc_compile(var1, another_var : str, var3 = 5, var4 : int
     :param var4: This is another test parameter with a default value
     """
     print("This is a test function")
+
+
+@plugfunc()
+def test_return_single_value():
+    return 5
+
+
+@plugfunc()
+def test_return_multiple_values():
+    time.sleep(1)
+    return 5, 6
+
+
+@plugfunc()
+def test_var_args_and_kwargs(*args, **kwargs):
+    print("args:", args)
+    print("kwargs:", kwargs)
+
+
+@plugfunc()
+def test_exception():
+    raise ValueError("This is a test exception")
+
+
+@plugfunc()
+def test_print(var1):
+    print("I am test_print:", var1)
+
 
 @plugfunc()
 def test(var1):

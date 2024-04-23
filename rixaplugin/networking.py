@@ -1,22 +1,19 @@
-import time
-import multiprocessing as mp
 import json
-import uuid
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, Future
-import threading
-import queue
+import os
 import pickle
-from .proxy_builder import construct_importable
-import warnings
+
 import msgpack
+
+import rixaplugin.rixalogger
+from . import utils, settings
 from .memory import _memory
 from .enums import HeaderFlags, FunctionPointerType
 import zmq.auth
-import logging
+
+from .rixa_exceptions import RemoteException
 from .utils import *
 import asyncio
 import zmq
-import zmq.asyncio as aiozmq
 
 # logging.basicConfig(level=logging.DEBUG)
 network_log = logging.getLogger("network")
@@ -58,9 +55,28 @@ class NetworkAdapter:
         self.pending_requests = {}
         self.time_estimate_events = {}
         self.time_estimate = {}
+        self.is_server = None
+        self.is_initialized = False
+        self.api_objs = {}
 
         if manually_created:
             network_log.warning("Manually created network adapter. No automatic resource management. Cleanup required!")
+
+
+
+    async def send(self, identity, data, already_serialized=False):
+        if not already_serialized:
+            try:
+                data = msgpack.packb(data)
+            except Exception as e:
+                network_log.error(f"A message could not be serialized: {data}")
+                # return
+        if self.is_server:
+            if identity==0:
+                raise Exception("Identity is 0")
+            await self.con.send_multipart([identity, data])
+        else:
+            await self.con.send(data)
 
     async def send_return(self, identity, request_id, ret):
         ret = {"HEAD": HeaderFlags.FUNCTION_RETURN, "return": ret, "request_id": request_id}
@@ -70,29 +86,38 @@ class NetworkAdapter:
             network_log.exception(f"Function return not serializable")
             await self.send_exception(identity, request_id, e)
             return
-        await self.con.send_multipart([identity, raw])
+        await self.send(identity, raw, already_serialized=True)
 
     async def send_exception(self, identity, request_id, exception):
-        ret = {"HEAD": HeaderFlags.EXCEPTION_RETURN, "exception": exception, "request_id": request_id}
-        await self.con.send_multipart([identity, msgpack.packb(ret)])
+        # RemoteException(exception_info['type'], exception_info['message'], exception_info['traceback']
+        exc_str = rixaplugin.rixalogger.format_exception(exception, without_color=True)
+
+        ret = {"HEAD": HeaderFlags.EXCEPTION_RETURN, "message": str(exception), "request_id": request_id,
+               "type": type(exception).__name__, "traceback": exc_str}
+        await self.send(identity, ret)
+
 
     async def send_api_call(self, identity, request_id, api_func_name, args, kwargs):
         ret = {"HEAD": HeaderFlags.API_CALL, "api_func_name": api_func_name, "args": args, "kwargs": kwargs,
                "request_id": request_id}
-        await self.con.send_multipart([identity, msgpack.packb(ret)])
+        await self.send(identity, ret)
 
-    async def call_remote_function(self, plugin_entry, args=None, kwargs=None, one_way=False,
+    async def call_remote_function(self, plugin_entry, api_obj, args=None, kwargs=None,  one_way=False,
                                    return_time_estimate=False):
+
         if args is None:
             args = []
         if kwargs is None:
             kwargs = {}
 
         request_id = identifier_from_signature(plugin_entry["name"], args, kwargs)
+        self.api_objs[request_id] = api_obj
         message = {
             "HEAD": HeaderFlags.FUNCTION_CALL,
             "request_id": request_id,
             "func_name": plugin_entry["name"],
+            "plugin_name": plugin_entry["plugin_name"],
+            "oneway": one_way,
             "args": args,
             "kwargs": kwargs
         }
@@ -106,17 +131,15 @@ class NetworkAdapter:
         else:
             self.pending_requests[request_id] = None
 
-        serialized_message = msgpack.packb(message)
-
         remote_func_type = plugin_entry["type"]
-        if remote_func_type & FunctionPointerType.CLIENT:
-            await self.con.send(serialized_message)
-        elif remote_func_type & FunctionPointerType.SERVER:
-            await self.con.send_multipart([plugin_entry["remote_id"], serialized_message])
-
+        await self.send(plugin_entry["remote_id"], message)
         # time estimate is always awaited
         # need to check whether this makes sense or if call without acknowledgement is possible
-        await event.wait()
+        answer = await utils.event_wait(event, 2)  # event.wait()
+        if not answer:
+            _memory.plugins[plugin_entry["plugin_name"]]["is_alive"] = False
+            del self.api_objs[request_id]
+            raise Exception(f"No acknowledgement for function call. Plugin '{plugin_entry['name']}' offline?")
 
         time_estimate = self.time_estimate[request_id]
         del self.time_estimate[request_id]
@@ -130,9 +153,14 @@ class NetworkAdapter:
 
     async def listen(self):
         while True:
-            identity, message = await self.con.recv_multipart()
+            if self.is_server:
+                identity, message = await self.con.recv_multipart()
+                # network_log.debug(f"Received something from {identity.hex()}")
+            else:
+                message = await self.con.recv()
+                identity = self
+                # network_log.debug(f"Received something from remote on client {identity}")
             try:
-                network_log.debug(f"Received something from {identity.hex()}")
                 try:
                     msg = msgpack.unpackb(message)
                 except:
@@ -146,6 +174,10 @@ class NetworkAdapter:
                     continue
                 try:
                     header_flags = HeaderFlags(msg["HEAD"])
+                    if self.is_server:
+                        network_log.debug(f"Received {header_flags} from {identity.hex()}")
+                    else:
+                        network_log.debug(f"Received {header_flags} from remote on client {identity}")
                 except:
                     network_log.warning("Received message header is not a valid flag!")
                     continue
@@ -156,55 +188,9 @@ class NetworkAdapter:
                             f"Deadlock detected. Too many nodes visited. Function call stack is circular."
                             f"Most likely a user error. Message will be ignored.")
                         continue
-
-                if header_flags & HeaderFlags.ACKNOWLEDGE:
-                    network_log.debug(f"Acknowledging connection")
-                    ret = {"HEAD": HeaderFlags.ACKNOWLEDGE | HeaderFlags.SERVER, "ID": _memory.ID}
+                await self.handle_remote_message(header_flags, msg, identity)
 
 
-                    if "request_info" in msg and msg["request_info"] == "plugin_signatures":
-                        ret["plugin_signatures"] = _memory.get_sendable_plugins()  # sendable_function_list
-
-                    if "plugin_signatures" in msg:
-                        _memory.add_plugin(msg["plugin_signatures"], identity, self, origin_is_client=True)
-
-                    await self.con.send_multipart(
-                        [identity, msgpack.packb(ret)])
-
-
-                elif header_flags & HeaderFlags.FUNCTION_CALL:
-                    network_log.debug(f"Received function call from {identity.hex()}")
-                    try:
-                        future = asyncio.create_task(execute_networked(
-                            msg["func_name"], msg["args"], msg["kwargs"], identity, msg["request_id"], 3, False))
-                        ret = {"HEAD": HeaderFlags.TIME_ESTIMATE_AND_ACKNOWLEDGEMENT, "request_id": msg["request_id"]}
-                        await self.con.send_multipart([identity, msgpack.packb(ret)])
-                    except FunctionNotFoundException as e:
-                        ret = {"HEAD": HeaderFlags.FUNCTION_NOT_FOUND, "request_id": msg["request_id"]}
-                        await self.con.send_multipart([identity, msgpack.packb(ret)])
-                elif header_flags & HeaderFlags.FUNCTION_RETURN:
-                    request_id = message.get("request_id")
-                    if request_id in self.pending_requests:
-                        if not self.pending_requests[request_id]:
-                            del self.pending_requests[request_id]
-                            continue
-                        ret_val = message.get("return")
-                        if ret_val:
-                            self.pending_requests[request_id].set_result(ret_val)
-                        if "exception" in message:
-                            ret_val = Exception("Something went wrong on the server side.")
-                            self.pending_requests[request_id].set_exception(ret_val)
-                        del self.pending_requests[request_id]
-                    else:
-                        network_log.warning(f"Received response for unknown request id: {request_id}")
-                elif header_flags & HeaderFlags.TIME_ESTIMATE_AND_ACKNOWLEDGEMENT:
-                    request_id = message.get("request_id")
-                    print(self.time_estimate_events)
-                    if request_id in self.time_estimate_events:
-                        self.time_estimate[request_id] = message.get("time_estimate")
-                        self.time_estimate_events[request_id].set()
-                    else:
-                        network_log.warning(f"Received time estimate for unknown request id: {request_id}")
             except Exception as e:
                 network_log.exception(f"Message header faulty: Error:\n{e}")
                 self.error_count += 1
@@ -221,6 +207,101 @@ class NetworkAdapter:
                     network_log.error("Incoming request are faulty and likely stem from erroneous code. Shutting down.")
                     _memory.force_shutdown()
 
+    async def handle_remote_message(self, header_flags, msg, identity):
+        if header_flags & HeaderFlags.ACKNOWLEDGE:
+            network_log.debug(f"Acknowledging connection")
+            ret = {"HEAD": HeaderFlags.ACKNOWLEDGE | HeaderFlags.SERVER, "ID": _memory.ID}
+
+            if "request_info" in msg and msg["request_info"] == "plugin_signatures":
+                if "plugin_signatures" in msg:
+                    ret["plugin_signatures"] = _memory.get_sendable_plugins(skip=msg["plugin_signatures"].values())
+                else:
+                    ret["plugin_signatures"] = _memory.get_sendable_plugins()
+
+            if "plugin_signatures" in msg:
+                _memory.add_plugin(msg["plugin_signatures"], identity, self, origin_is_client=True)
+            await self.send(identity, ret)
+
+            print(_memory)
+
+            self.first_connection.set()
+            # await self.con.send_multipart(
+            #     [identity, msgpack.packb(ret)])
+
+
+        elif header_flags & HeaderFlags.FUNCTION_CALL:
+            try:
+                asyncio.create_task(execute_networked(
+                    msg["func_name"], msg["plugin_name"], msg["args"], msg["kwargs"], msg["oneway"],
+                    msg["request_id"], identity, self))
+                ret = {"HEAD": HeaderFlags.TIME_ESTIMATE_AND_ACKNOWLEDGEMENT, "request_id": msg["request_id"]}
+                await self.send(identity, ret)
+            except FunctionNotFoundException as e:
+                ret = {"HEAD": HeaderFlags.FUNCTION_NOT_FOUND, "request_id": msg["request_id"]}
+                await self.send(identity, ret)
+
+        elif header_flags & HeaderFlags.API_CALL:
+            request_id = msg.get("request_id")
+            api_obj = self.api_objs.get(request_id)
+            if not api_obj:
+                network_log.warning(f"API object not found for request id {request_id}")
+                return
+            api_func_name = msg.get("api_func_name")
+            args = msg.get("args")
+            kwargs = msg.get("kwargs")
+            api_callable = getattr(api_obj, api_func_name)
+            await api_callable(*args, **kwargs)
+
+        elif header_flags & HeaderFlags.FUNCTION_RETURN:
+            request_id = msg.get("request_id")
+            asyncio.create_task(self.trigger_api_deletion(request_id))
+            if request_id in self.pending_requests:
+                if not self.pending_requests[request_id]:
+                    del self.pending_requests[request_id]
+                    return
+                if "return" in msg:
+                    ret_val = msg.get("return")
+                    self.pending_requests[request_id].set_result(ret_val)
+                if "exception" in msg:
+                    ret_val = Exception("Something went wrong on the server side.")
+                    self.pending_requests[request_id].set_exception(ret_val)
+                del self.pending_requests[request_id]
+            else:
+                network_log.warning(f"Received response for unknown request id: {request_id}")
+
+        elif header_flags & HeaderFlags.EXCEPTION_RETURN:
+            request_id = msg.get("request_id")
+            asyncio.create_task(self.trigger_api_deletion(request_id))
+            if request_id in self.pending_requests:
+                exc = RemoteException(msg['type'], msg['message'], msg['traceback'])
+                # TODO proper traceback?
+                self.pending_requests[request_id].set_exception(exc)
+                del self.pending_requests[request_id]
+            else:
+                network_log.warning(f"Received exception for unknown request id: {request_id}")
+
+        elif header_flags & HeaderFlags.TIME_ESTIMATE_AND_ACKNOWLEDGEMENT:
+            request_id = msg.get("request_id")
+
+            if request_id in self.time_estimate_events:
+                self.time_estimate[request_id] = msg.get("time_estimate")
+                self.time_estimate_events[request_id].set()
+            else:
+                network_log.warning(f"Received time estimate for unknown request id: {request_id}")
+
+    async def trigger_api_deletion(self, request_id, time=2):
+        """
+        Trigger the deletion of an api object after a certain time.
+
+        We can't del immediately as api calls can come after return due to async nature.
+        :param request_id:
+        :param time:
+        :return:
+        """
+        await asyncio.sleep(time)
+        if request_id in self.api_objs:
+            del self.api_objs[request_id]
+
 
 class PluginServer(NetworkAdapter):
 
@@ -232,11 +313,14 @@ class PluginServer(NetworkAdapter):
         self.con = _memory.zmq_context.socket(zmq.ROUTER)
         _memory.listener_socket = self.con
         self.error_count = 0
+        self.is_server = True
 
         if not address:
             address = f"tcp://*:{port}"
         self.con.bind(address)
         network_log.debug(f"Server started at {address}")
+        self.first_connection = asyncio.Event()
+        utils.make_discoverable(_memory.ID, "localhost", port, str(list(_memory.plugins.keys())))
 
 
 async def create_and_start_plugin_client(server_address, port=2809, raise_on_connection_failure=True):
@@ -289,6 +373,7 @@ class PluginClient(NetworkAdapter):
         super().__init__(port, use_curve, manually_created=manually_created)
         self.full_address = f"{protocoll}{server_address}:{port}"
         self.con = _memory.add_client_connection(zmq.DEALER)
+        self.is_server = False
 
     def __del__(self):
         _memory.delete_connection(self.con)

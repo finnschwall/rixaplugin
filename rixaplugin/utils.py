@@ -1,17 +1,68 @@
-from enum import IntFlag
+import contextlib
+import json
+import os
 import asyncio
 import logging
-from . settings import DEBUG_MODE
+
+from . import settings
+from . settings import DEBUG
+from rixaplugin.pylot.python_parsing import  generate_python_doc
 task_superviser_log = logging.getLogger("task_superviser")
 
 # export PYTHONASYNCIODEBUG=1
 
 
-async def _supervisor(future, id=None):
+def is_valid_call(func_metadata, args, kwargs):
+    """
+    Validates if the provided args and kwargs are valid for the function described by func_metadata.
+
+    :param func_metadata: Dictionary describing the function's parameters.
+    :param args: Tuple of positional arguments to be passed to the function.
+    :param kwargs: Dictionary of keyword arguments to be passed to the function.
+    :return: True if the call is valid, False otherwise.
+    """
+    return True
+    # Too inprecise. E.g. when there are 2 args and the function has 1 arg and 1 kwarg it will raise an error
+    correct_signature = " Expected signature is:\n" + generate_python_doc(func_metadata, include_docstr=False)
+
+    # Check if the number of provided positional arguments exceeds the expected number
+    positional_params = [param for param in func_metadata['args'] if param['kind'] == 1]
+    if len(args) > len(positional_params):
+        raise ValueError("Too many positional arguments." + correct_signature)
+
+    # Check if all required arguments (without default values) are provided
+    required_params = {param['name'] for param in func_metadata['args'] if 'default' not in param}
+    required_params.update({param['name'] for param in func_metadata['kwargs'] if 'default' not in param})
+
+    provided_params = set(kwargs.keys()) | {param['name'] for i, param in enumerate(func_metadata['args']) if
+                                            i < len(args)}
+
+    missing_params = required_params - provided_params
+    if missing_params:
+        raise ValueError(f"Missing required arguments: {missing_params}." + correct_signature)
+
+    # Check if all provided keyword arguments are recognized
+    all_params = {param['name'] for param in func_metadata['args']} | {param['name'] for param in
+                                                                       func_metadata['kwargs']}
+    unrecognized_kwargs = set(kwargs.keys()) - all_params
+    if unrecognized_kwargs:
+        raise ValueError(f"Unrecognized keyword arguments: {unrecognized_kwargs}." + correct_signature)
+    return True
+
+
+
+async def event_wait(evt, timeout):
+    # suppress TimeoutError because we'll return False in case of timeout
+    with contextlib.suppress(asyncio.TimeoutError):
+        await asyncio.wait_for(evt.wait(), timeout)
+    return evt.is_set()
+
+
+async def supervisor(future, id=None):
     try:
         await future
     except Exception as e:
-        task_superviser_log.exception(f"Error in unsupervised call" + (f" with id {id}" if id else ""))
+        task_superviser_log.exception(f"Supervision error" + (f" with id {id}" if id else ""))
         # print(f"Supervision Error: {e}")
 
 
@@ -23,7 +74,7 @@ async def supervise_future(future, id=None):
     :param future: Future to supervise
     :param id: Origin id (if available)
     """
-    asyncio.create_task(_supervisor(future, id))
+    asyncio.create_task(supervisor(future, id))
 
 
 def identifier_from_signature(fname, args=[], kwargs={}):
@@ -37,11 +88,11 @@ def identifier_from_signature(fname, args=[], kwargs={}):
     :param kwargs:
     :return: Unique identifier
     """
-    if DEBUG_MODE:
+    if DEBUG:
         args_str = str(args)[:10]
         kwargs_str = str(kwargs)[:10]
         signature = f"{fname}({args_str}, {kwargs_str})"
-        signature = signature+str(hash(signature))[1:5]
+        signature = signature+":"+str(hash(signature))[1:5]
         return signature
     signature = fname
     for arg in args:
@@ -53,3 +104,78 @@ def identifier_from_signature(fname, args=[], kwargs={}):
     if len(kwargs) == 0:
         signature += "NOKWARGS"
     return hash(signature)
+
+
+    PLUGIN_REGISTRY = "/tmp/plugin_registry.json"
+
+def make_discoverable(name: str, endpoint: str, port: int, description: str) -> None:
+    """
+    Make oneself available by writing to the registry file.
+    If the plugin is already registered, it will be updated with new values.
+
+    :param name: The unique name of the plugin
+    :param endpoint: An IP-like string (e.g. "localhost", "example.com")
+    :param port: A TCP port number
+    :param description: A short human-readable description of the plugin
+    """
+    registry = {}
+    if os.path.exists(settings.PLUGIN_REGISTRY):
+        with open(settings.PLUGIN_REGISTRY, 'r') as f:
+            registry = json.load(f)
+
+    # If we're already registered, update our entry; otherwise add a new one.
+    for existing_plugin in list(registry.values()):
+        if existing_plugin['name'] == name:
+            existing_plugin.update({
+                "endpoint": endpoint,
+                "port": port,
+                "description": description
+            })
+            break
+    else:  # not found, so we're adding anew...
+        registry[name] = {
+            "name": name,
+            "endpoint": endpoint,
+            "port": port,
+            "description": description
+        }
+
+    with open(settings.PLUGIN_REGISTRY, 'w') as f:
+        json.dump(registry, f)
+
+def discover_plugins() -> list[dict]:
+    """
+    Discover all available plugins by reading the registry file.
+    :return: A list of dictionaries containing plugin info (name, endpoint, port, description)
+    """
+    if not os.path.exists(settings.PLUGIN_REGISTRY):
+        return []
+
+    with open(settings.PLUGIN_REGISTRY, 'r') as f:
+        registry = json.load(f)
+
+    plugins = [plugin for _, plugin in registry.items()]
+    # Filter out any invalid entries
+    valid_plugins = [{k: v for k, v in p.items() if k != '__module__'}
+                     for p in plugins]
+
+    return valid_plugins
+
+def remove_plugin(name: str) -> None:
+    """
+    Remove one's own entry from the registry file.
+    :param name: The unique name of the plugin to be removed
+    """
+
+    # Load current state...
+    if not os.path.exists(settings.PLUGIN_REGISTRY):
+        print(f"Plugin {name} is already gone!")
+
+    with open(settings.PLUGIN_REGISTRY, 'r') as f:
+        registry = json.load(f)
+
+    del registry[name]
+
+    # Save the updated list of plugins
+    with open(settings.PLUGIN_REGISTRY, 'w') as f:
+        json.dump(registry, f)

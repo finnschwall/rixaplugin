@@ -1,7 +1,20 @@
 import inspect
+from _ast import AST
+
 from docstring_parser import parse
 import ast
 
+from rixaplugin.rixa_exceptions import SignatureMismatchException, FunctionNotFoundException
+
+
+def class_to_func_signatures(cls):
+    # Turn all public methods of a class into function signatures
+    function_specs = []
+    for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
+        if name.startswith('_'):
+            continue
+        function_specs.append(function_signature_to_dict(method))
+    return function_specs
 
 def generate_python_doc(func_dict, include_docstr=True):
     func_name = func_dict.get('name', "UNKNOWN")
@@ -53,7 +66,7 @@ def function_signature_to_dict(func):
         elif param.kind == inspect.Parameter.VAR_KEYWORD:
             has_var_keyword = True
         elif param.default == inspect.Parameter.empty:
-            arg = {'name': name}
+            arg = {'name': name, "kind": param.kind}
             for doc_param in doc.params:
                 if doc_param.arg_name == name:
                     if doc_param.type_name:
@@ -65,7 +78,7 @@ def function_signature_to_dict(func):
                         arg['description'] = doc_param.description
             args.append(arg)
         else:
-            kwarg = {'name': name, 'default': param.default}
+            kwarg = {'name': name, 'default': param.default, "kind": param.kind}
             for doc_param in doc.params:
                 if doc_param.arg_name == name:
                     kwarg_type = doc_param.type_name
@@ -79,7 +92,7 @@ def function_signature_to_dict(func):
                     if doc_param.description and doc_param.description != "":
                         kwarg['description'] = doc_param.description
             kwargs.append(kwarg)
-
+    # print(func.__name__, kwargs)
     return {
         'name': func.__name__,
         'description': doc.short_description,
@@ -90,75 +103,68 @@ def function_signature_to_dict(func):
     }
 
 
-# def function_signature_to_dict(func):
-#     sig = inspect.signature(func)
-#     params = sig.parameters
-#
-#     doc = parse(func.__doc__)
-#
-#     args = []
-#     kwargs = []
-#
-#     for name, param in params.items():
-#         if param.default == inspect.Parameter.empty:
-#             arg = {'name': name}
-#             for doc_param in doc.params:
-#                 if doc_param.arg_name == name:
-#                     if doc_param.type_name:
-#                         arg['type'] = doc_param.type_name
-#                     if doc_param.description and doc_param.description != "":
-#                         arg['description'] = doc_param.description
-#             args.append(arg)
-#         else:
-#             kwarg = {'name': name, 'default': param.default}
-#             for doc_param in doc.params:
-#                 if doc_param.arg_name == name:
-#                     kwarg_type = doc_param.type_name
-#                     if not kwarg_type:
-#                         if param.default:
-#                             kwarg_type = type(param.default).__name__
-#                     if kwarg_type:
-#                         kwarg['type'] = kwarg_type
-#                     if doc_param.description and doc_param.description != "":
-#                         kwarg['description'] = doc_param.description
-#             kwargs.append(kwarg)
-#
-#     return {
-#         'name': func.__name__,
-#         'description': doc.short_description,
-#         'args': args,
-#         'kwargs': kwargs
-#     }
-
 
 class CodeVisitor(ast.NodeVisitor):
-    def __init__(self, func_map={}, collect=False):
+    def __init__(self, func_callback, func_map={}):
         self.func_map = func_map
-        self.collect = collect
+
+        self.func_callback = func_callback
         self.variables = {}
         self.collection = []
+        self.least_one_call = False
 
-    def visit_Call(self, node):
+    async def visit_Call(self, node):
         func_name = node.func.id
         args = [self.variables.get(arg.id, None) if isinstance(arg, ast.Name) else ast.literal_eval(arg) for arg in
                 node.args]
         kwargs = {kw.arg: self.variables.get(kw.value.id, None) if isinstance(kw.value, ast.Name) else ast.literal_eval(
             kw.value) for kw in node.keywords}
-        resolved_func = self.func_map.get(func_name)
+
+        resolved_func = None
+        for func in self.func_map:
+            if func["name"] == func_name:
+                resolved_func = func
+                break
+
+        if not resolved_func:
+            raise FunctionNotFoundException(f"Function {func_name} not found")
+        # TODO fix this. Really doesnt help as of now
+        # self.check_signature_compatibility(node, resolved_func)
+
         if resolved_func:
-            result = resolved_func(*args, **kwargs)
+            result = await self.func_callback(resolved_func, args, kwargs)#resolved_func["pointer"](*args, **kwargs)
+            self.least_one_call = True
             self.variables['__call_res__'] = result
             return result
-        elif self.collect:
-            self.collection.append({"name": func_name, "args": args, "kwargs": kwargs})
         else:
             return f"Function {func_name} not found"
 
-    def visit_Assign(self, node):
+    def check_signature_compatibility(self, node, function_metadata):
+        # Extract the argument names from the metadata
+        expected_arg_names = [arg['name'] for arg in function_metadata['args']]
+        # Check if the number of positional arguments in the node matches the expected number
+        if len(node.args) > len(expected_arg_names) + len(function_metadata["kwargs"]) and not function_metadata['has_var_positional']:
+            raise SignatureMismatchException(f"Too many positional arguments for function '{function_metadata['name']}'"
+                                             f"Correct signature is: '{generate_python_doc(function_metadata)[4:]}'")
+        # Check if all keyword arguments in the node are expected
+        if not function_metadata['has_var_keyword']:
+            for kw in node.keywords:
+                if kw.arg not in expected_arg_names:
+                    raise SignatureMismatchException(f"Unexpected keyword argument '{kw.arg}' for function '{function_metadata['name']}'"
+                                                     f"Correct signature is: '{generate_python_doc(function_metadata)[4:]}'")
+        return True
+
+    async def resolve_arg(self, arg):
+        if isinstance(arg, ast.Name):
+            return self.variables.get(arg.id)
+        else:
+            return ast.literal_eval(arg)
+
+    async def visit_Assign(self, node):
         if isinstance(node.targets[0], ast.Name):
             var_name = node.targets[0].id
             if isinstance(node.value, ast.Call):
-                value = self.visit(node.value)
+                value = await self.visit(node.value)
             elif isinstance(node.value, ast.Name):
                 value = self.variables.get(node.value.id)
             else:
@@ -166,3 +172,19 @@ class CodeVisitor(ast.NodeVisitor):
 
             self.variables[var_name] = value
             # print(f'Variable assignment: {var_name} = {value}')
+
+    async def visit(self, node):
+        """Visit a node."""
+        method = 'visit_' + node.__class__.__name__
+        visitor = getattr(self, method, self.generic_visit)
+        return await visitor(node)
+
+    async def generic_visit(self, node):
+        """Called if no explicit visitor function exists for a node."""
+        for field, value in ast.iter_fields(node):
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, AST):
+                        await self.visit(item)
+            elif isinstance(value, AST):
+               await self.visit(value)
