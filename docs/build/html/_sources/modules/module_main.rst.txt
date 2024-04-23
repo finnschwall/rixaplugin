@@ -1,0 +1,6 @@
+Pylot documentation
+==================================
+
+.. automodule:: rixaplugin.pylot
+   :members:
+   :undoc-members:
