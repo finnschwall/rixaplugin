@@ -1,44 +1,24 @@
-import abc
-import asyncio
 import atexit
 import concurrent
 import pickle
-import sys
-import threading
 from concurrent.futures import ThreadPoolExecutor
 import zmq
 
-import rixaplugin.rixalogger
-from .enums import FunctionPointerType
-from .memory import _memory, get_function_entry
+from rixaplugin.data_structures.enums import PluginModeFlags, FunctionPointerType
+from rixaplugin.internal.memory import _memory, get_function_entry
 import functools
 from enum import Flag, auto
-from .utils import *
+from rixaplugin.internal.utils import *
 import logging
-from .rixa_exceptions import *
-from . import api, utils
-from .pylot import python_parsing, proxy_builder
+from rixaplugin.data_structures.rixa_exceptions import *
+from rixaplugin.internal import api, utils
+from rixaplugin.pylot import python_parsing
 import ast
 
 core_log = logging.getLogger("plugin_core")
 
-
-class PluginModeFlags(Flag):
-    LOCAL = auto()
-    THREAD = auto()
-    PROCESS = auto()
-    IPC_SOCKET = auto()
-    NETWORK = auto()
-    CLIENT = auto()
-    SERVER = auto()
-    JUPYTER = auto()
-
-
 PMF_DebugLocal = PluginModeFlags.LOCAL | PluginModeFlags.THREAD
 PMF_Server = PluginModeFlags.SERVER | PluginModeFlags.NETWORK | PluginModeFlags.THREAD
-
-
-
 
 
 async def _start_process_server():
@@ -115,19 +95,6 @@ async def execute_networked(func_name, plugin_name, args, kwargs, oneway, reques
     except Exception as e:
         # print(rixaplugin.rixalogger.format_exception(e, without_color=True))
         await network_adapter.send_exception(identity, request_id, e)
-
-    # pointer = plugin_entry["pointer"]
-    #
-    # fun = functools.partial(pointer, *args, **kwargs)
-    # future = _memory.event_loop.run_in_executor(_memory.executor, fun)
-    # remote_origin = plugin_entry["remote_origin"]
-    # remote_identity = plugin_entry["remote_id"]
-    # try:
-    #     return_val = await future
-    #     await remote_origin.send_return(remote_identity, request_id, return_val)
-    # except Exception as e:
-    #     core_log.exception(f"Error during execution. ID: {request_id}")
-    #     await remote_origin.send_exception(remote_identity, request_id, e)
 
 
 async def _execute_code(ast_obj, api_obj):
@@ -238,6 +205,28 @@ async def _execute(plugin_entry, args=(), kwargs={}, api_obj=None, return_future
 
 async def execute(function_name, plugin_name=None, args=(), kwargs={}, api_obj=None, return_future=False,
                   return_time_estimate=False, timeout=10):
+    """
+    Execute a function in the plugin system.
+
+    This function is used to execute a function in the plugin system. It first checks if the plugin system is active,
+    then it gets the function entry from the function name and plugin name. It validates the call and then executes the function.
+
+    Args:
+        function_name (str): The name of the function to be executed.
+        plugin_name (str, optional): The name of the plugin where the function is located. Defaults to None.
+        args (tuple, optional): The positional arguments to pass to the function. Defaults to ().
+        kwargs (dict, optional): The keyword arguments to pass to the function. Defaults to {}.
+        api_obj (BaseAPI, optional): The API object to use for the function call. If None, a new BaseAPI object is created. Defaults to None.
+        return_future (bool, optional): If True, the function will return a future of the function call. Defaults to False.
+        return_time_estimate (bool, optional): If True, the function will return a time estimate of the function call. Defaults to False.
+        timeout (int, optional): The maximum time to wait for the function call to complete. Defaults to 10.
+
+    Raises:
+        Exception: If the plugin system is not initialized.
+
+    Returns:
+        Future or any: If return_future is True, it returns a Future object. Otherwise, it returns the result of the function call.
+    """
     if not _memory.plugin_system_active:
         raise Exception("Plugin system not initialized")
     if not api_obj:
@@ -247,13 +236,6 @@ async def execute(function_name, plugin_name=None, args=(), kwargs={}, api_obj=N
     utils.is_valid_call(plugin_entry, args, kwargs)
     return await _execute(plugin_entry, args, kwargs, api_obj, return_future=return_future,
                           return_time_estimate=return_time_estimate, timeout=timeout)
-    # if plugin_entry["type"] & FunctionPointerType.LOCAL:
-    #     if plugin_entry["type"] & FunctionPointerType.SYNC:
-    #         return await execute_sync(plugin_entry, args, kwargs, api_obj, return_future=return_future)
-    #     else:
-    #         return await execute_async(plugin_entry, args, kwargs, api_obj, return_future=return_future)
-    # raise NotImplementedError()
-
 
 
 class CountingThreadPoolExecutor(concurrent.futures.ThreadPoolExecutor):
@@ -338,42 +320,3 @@ class CountingProcessPoolExecutor(concurrent.futures.ProcessPoolExecutor):
     def get_free_worker_count(self):
         return self._max_workers - self._active_tasks
 
-
-# async def execute(plugin_entry, args, kwargs, return_future=False):
-#     if not _memory.plugin_system_active:
-#         raise Exception("Plugin system not initialized")
-#     if plugin_entry["type"] & FunctionPointerType.LOCAL:
-#         if plugin_entry["type"] & FunctionPointerType.SYNC:
-#             return await execute_sync(plugin_entry["pointer"], args, kwargs, return_future=return_future)
-#         else:
-#             pass
-#     elif plugin_entry["type"] & FunctionPointerType.REMOTE:
-#         if plugin_entry["type"] & FunctionPointerType.CLIENT:
-#             return await _memory.server.call_remote_function(plugin_entry, args=args, kwargs=kwargs, one_way=return_future,
-#                                    return_time_estimate=True)
-#         elif plugin_entry["type"] & FunctionPointerType.SERVER:
-#             return await _memory.server.execute_remote(entry["remote_id"], entry["name"], args, kwargs, request_id, return_future=return_future)
-#     else:
-#         raise Exception("Oh no!")
-
-
-
-
-# async def execute_local(name, args, kwargs,  identity, request_id, call_type, return_future=False):
-#     if not _memory.plugin_system_active:
-#         raise Exception("Plugin system not initialized")
-#     entry = _memory.find_function_by_name(name)
-#     if not entry:
-#         raise FunctionNotFoundException(name)
-#     pointer = entry["pointer"]
-#     fun = functools.partial(pointer, *args, **kwargs)
-#     future = _memory.event_loop.run_in_executor(_memory.executor, fun, request_id, identity, call_type)
-#     if return_future:
-#         return future
-#     try:
-#         return_val = await future
-#         await _memory.server.send_return(identity, request_id, return_val)
-#     except Exception as e:
-#         core_log.exception(f"Exception occurred during local execution of function \"{name}\"")
-#         if call_type == 3:
-#             await _memory.server.send_exception(identity, request_id, e)

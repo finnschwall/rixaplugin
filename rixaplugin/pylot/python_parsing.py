@@ -4,7 +4,7 @@ from _ast import AST
 from docstring_parser import parse
 import ast
 
-from rixaplugin.rixa_exceptions import SignatureMismatchException, FunctionNotFoundException
+from rixaplugin.data_structures.rixa_exceptions import SignatureMismatchException, FunctionNotFoundException
 
 
 def class_to_func_signatures(cls):
@@ -115,8 +115,17 @@ class CodeVisitor(ast.NodeVisitor):
 
     async def visit_Call(self, node):
         func_name = node.func.id
-        args = [self.variables.get(arg.id, None) if isinstance(arg, ast.Name) else ast.literal_eval(arg) for arg in
-                node.args]
+        args = []
+        for arg in node.args:
+            if isinstance(arg, ast.Name):
+                if arg.id in self.variables:
+                    args.append(self.variables.get(arg.id))
+                else:
+                    raise Exception(f"Variable with name '{arg.id}' not found")
+            else:
+                args.append(ast.literal_eval(arg))
+        # args = [self.variables.get(arg.id, None) if isinstance(arg, ast.Name) else ast.literal_eval(arg) for arg in
+        #         node.args]
         kwargs = {kw.arg: self.variables.get(kw.value.id, None) if isinstance(kw.value, ast.Name) else ast.literal_eval(
             kw.value) for kw in node.keywords}
 
@@ -171,7 +180,6 @@ class CodeVisitor(ast.NodeVisitor):
                 value = ast.literal_eval(node.value)
 
             self.variables[var_name] = value
-            # print(f'Variable assignment: {var_name} = {value}')
 
     async def visit(self, node):
         """Visit a node."""

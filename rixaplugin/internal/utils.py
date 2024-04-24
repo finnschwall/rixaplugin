@@ -4,8 +4,8 @@ import os
 import asyncio
 import logging
 
-from . import settings
-from . settings import DEBUG
+from rixaplugin import settings
+from rixaplugin.settings import DEBUG
 from rixaplugin.pylot.python_parsing import  generate_python_doc
 task_superviser_log = logging.getLogger("task_superviser")
 
@@ -174,8 +174,7 @@ def remove_plugin(name: str) -> None:
     with open(settings.PLUGIN_REGISTRY, 'r') as f:
         registry = json.load(f)
 
-    del registry[name]
-
-    # Save the updated list of plugins
-    with open(settings.PLUGIN_REGISTRY, 'w') as f:
-        json.dump(registry, f)
+    if name in registry:
+        del registry[name]
+        with open(settings.PLUGIN_REGISTRY, 'w') as f:
+            json.dump(registry, f)

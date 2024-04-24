@@ -1,4 +1,4 @@
-rixaplugin
+Modules
 ==========
 
 .. toctree::

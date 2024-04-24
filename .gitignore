@@ -16,6 +16,7 @@ docs/build/doctrees
 develop-eggs/
 dist/
 build/
+!/docs/build/html/
 downloads/
 eggs/
 .eggs/

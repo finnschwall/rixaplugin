@@ -1,17 +1,13 @@
-import json
-import os
-import pickle
-
 import msgpack
 
-import rixaplugin.rixalogger
-from . import utils, settings
-from .memory import _memory
-from .enums import HeaderFlags, FunctionPointerType
+import rixaplugin.internal.rixalogger
+from rixaplugin.internal import utils
+from rixaplugin.internal.memory import _memory
+from rixaplugin.data_structures.enums import HeaderFlags
 import zmq.auth
 
-from .rixa_exceptions import RemoteException
-from .utils import *
+from rixaplugin.data_structures.rixa_exceptions import RemoteException
+from rixaplugin.internal.utils import *
 import asyncio
 import zmq
 
@@ -33,9 +29,9 @@ async def create_and_start_plugin_server(port, address=None, allow_any_connectio
     if allow_any_connection:
         network_log.warning("Allowing any connection to the server. Disable for production!")
         # warnings.warn("Allowing any connection to the server. Disable for production!")
-    else:
-        # TODO curve pair check
-        raise NotImplementedError()
+    # else:
+    #     # TODO curve pair check
+    #     raise NotImplementedError()
     if _memory.server:
         raise Exception("Server already running")
     server = PluginServer(port, address, use_curve=not allow_any_connection, manually_created=False)
@@ -90,7 +86,7 @@ class NetworkAdapter:
 
     async def send_exception(self, identity, request_id, exception):
         # RemoteException(exception_info['type'], exception_info['message'], exception_info['traceback']
-        exc_str = rixaplugin.rixalogger.format_exception(exception, without_color=True)
+        exc_str = rixaplugin.internal.rixalogger.format_exception(exception, without_color=True)
 
         ret = {"HEAD": HeaderFlags.EXCEPTION_RETURN, "message": str(exception), "request_id": request_id,
                "type": type(exception).__name__, "traceback": exc_str}
@@ -222,8 +218,6 @@ class NetworkAdapter:
                 _memory.add_plugin(msg["plugin_signatures"], identity, self, origin_is_client=True)
             await self.send(identity, ret)
 
-            print(_memory)
-
             self.first_connection.set()
             # await self.con.send_multipart(
             #     [identity, msgpack.packb(ret)])
@@ -318,12 +312,12 @@ class PluginServer(NetworkAdapter):
         if not address:
             address = f"tcp://*:{port}"
         self.con.bind(address)
-        network_log.debug(f"Server started at {address}")
+        network_log.info(f"Server started at {address}")
         self.first_connection = asyncio.Event()
         utils.make_discoverable(_memory.ID, "localhost", port, str(list(_memory.plugins.keys())))
 
 
-async def create_and_start_plugin_client(server_address, port=2809, raise_on_connection_failure=True):
+async def create_and_start_plugin_client(server_address, port=2809, raise_on_connection_failure=True, return_future=False):
     client = PluginClient(server_address, port, manually_created=False)
     try:
         client.con.connect(client.full_address)
@@ -344,7 +338,7 @@ async def create_and_start_plugin_client(server_address, port=2809, raise_on_con
             message = await client.con.recv(zmq.NOBLOCK)
             msg = msgpack.unpackb(message)
             if msg["HEAD"] & HeaderFlags.ACKNOWLEDGE:
-                network_log.debug("Connection established")
+                network_log.info("Connection established")
             else:
                 raise Exception(
                     "Connection established but failed to receive acknowledge message. This shouldn't happen.")
@@ -363,8 +357,14 @@ async def create_and_start_plugin_client(server_address, port=2809, raise_on_con
     except zmq.ZMQError as e:
         raise Exception(f"Failed to connect to {server_address}:{port}\n{e}")
     future = asyncio.create_task(client.listen())
-    asyncio.create_task(supervise_future(future))
-    return client, future
+    if return_future:
+        return client, future
+    else:
+        asyncio.create_task(supervise_future(future))
+        return client
+
+
+
 
 
 class PluginClient(NetworkAdapter):
@@ -397,4 +397,4 @@ class PluginClient(NetworkAdapter):
     #     construct_importable(name, self.remote_function_signatures, description="Remote plugin module")
 
 
-from .executor import execute_networked, FunctionNotFoundException
+from rixaplugin.internal.executor import execute_networked, FunctionNotFoundException

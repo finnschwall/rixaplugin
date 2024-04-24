@@ -7,7 +7,8 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   rixaplugin.public
+   rixaplugin.data_structures
+   rixaplugin.internal
    rixaplugin.pylot
    rixaplugin.remote
    rixaplugin.test
@@ -15,10 +16,10 @@ Subpackages
 Submodules
 ----------
 
-rixaplugin.api module
----------------------
+rixaplugin.async\_api module
+----------------------------
 
-.. automodule:: rixaplugin.api
+.. automodule:: rixaplugin.async_api
    :members:
    :undoc-members:
    :show-inheritance:
@@ -31,62 +32,6 @@ rixaplugin.decorators module
    :undoc-members:
    :show-inheritance:
 
-rixaplugin.enums module
------------------------
-
-.. automodule:: rixaplugin.enums
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-rixaplugin.executor module
---------------------------
-
-.. automodule:: rixaplugin.executor
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-rixaplugin.memory module
-------------------------
-
-.. automodule:: rixaplugin.memory
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-rixaplugin.networking module
-----------------------------
-
-.. automodule:: rixaplugin.networking
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-rixaplugin.rixa\_exceptions module
-----------------------------------
-
-.. automodule:: rixaplugin.rixa_exceptions
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-rixaplugin.rixalogger module
-----------------------------
-
-.. automodule:: rixaplugin.rixalogger
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-rixaplugin.rixalogger\_legacy module
-------------------------------------
-
-.. automodule:: rixaplugin.rixalogger_legacy
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 rixaplugin.settings module
 --------------------------
 
@@ -95,18 +40,10 @@ rixaplugin.settings module
    :undoc-members:
    :show-inheritance:
 
-rixaplugin.utils module
------------------------
-
-.. automodule:: rixaplugin.utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-rixaplugin.variables module
+rixaplugin.sync\_api module
 ---------------------------
 
-.. automodule:: rixaplugin.variables
+.. automodule:: rixaplugin.sync_api
    :members:
    :undoc-members:
    :show-inheritance:

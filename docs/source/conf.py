@@ -6,8 +6,8 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'RIXA'
-copyright = '2023, Finn Schwall, Fraunhofer IOSB'
+project = 'RIXA plugin system'
+copyright = '2024, Finn Schwall, Fraunhofer IOSB'
 author = 'Finn Schwall'
 version = '0.1'
 release = '0.1-alpha1'

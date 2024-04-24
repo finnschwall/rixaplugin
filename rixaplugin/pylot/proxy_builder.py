@@ -42,24 +42,6 @@ def create_module(name, function_specs, description=None, module_file="REMOTE", 
         setattr(module, func_name, proxy_function)
 
     return module
-    # module = types.ModuleType(name)
-    # module.__doc__ = "Auto-generated module for RPC remote plugin: " + name if not description else description
-    #
-    # module.__file__ = module_file
-    #
-    # setattr(module, "__file__", "REMOTE")
-    #
-    # for func_spec in function_specs:
-    #     func_name = func_spec['name']
-    #     args = func_spec.get('args', [])
-    #     kwargs = func_spec.get('kwargs', [])
-    #     varkw = func_spec.get('varkw', None)
-    #     docstring = func_spec.get('doc', '')
-    #     proxy_function = create_function_with_signature(func_name, args, kwargs, varkw, docstring, function_factory=function_factory)
-    #     setattr(module, func_name, proxy_function)
-    #
-    # return module
-
 
 
 

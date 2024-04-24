@@ -15,7 +15,13 @@ classifiers = [
 
 dependencies = [
     "docstring_parser",
+    "click",
+    "pyzmq",
+    "msgpack"
 ]
+[project.scripts]
+rixaplugin = "rixaplugin.internal.cli:main"
+
 
 #[project.urls]
 #"Homepage" = "https://github.com/finnschwall/PyLoT"

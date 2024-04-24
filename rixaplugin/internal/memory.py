@@ -1,15 +1,15 @@
 import threading
-from pprint import pprint
 
 from rixaplugin.pylot.python_parsing import generate_python_doc
 import zmq.asyncio as aiozmq
 import logging
-from .enums import FunctionPointerType
+from rixaplugin.data_structures.enums import FunctionPointerType
 import secrets
-from .rixa_exceptions import FunctionNotFoundException, PluginNotFoundException
+from rixaplugin.data_structures.rixa_exceptions import FunctionNotFoundException, PluginNotFoundException
 
 core_log = logging.getLogger("core")
-from . import settings, utils
+from rixaplugin import settings
+from rixaplugin.internal import utils
 
 
 def get_function_entry(name, plugin_name=None):
@@ -66,6 +66,7 @@ class PluginMemory:
         self.server = None
         self.ID = secrets.token_hex(8)
         self.max_queue = 10
+        self.allow_remote_functions = True if settings.ACCEPT_REMOTE_PLUGINS != 0 else False
 
     def add_function(self, signature_dict, id=None, fn_type=FunctionPointerType.LOCAL):
         if not id:
@@ -83,10 +84,15 @@ class PluginMemory:
         local_plugin_names = [i["name"] for i in self.plugins.values() if i["type"] & FunctionPointerType.LOCAL]
 
         # add functions to function list
+        new_names = []
         for i in plugin_dict.values():
             if i["name"] in local_plugin_names:
                 core_log.warning(f"Plugin '{i['name']}' already exists locally. Skipping...")
                 continue
+            if i["name"] in self.plugins:
+                core_log.debug(f"Plugin '{i['name']}' already exists. Overwriting...")
+                del self.plugins[i["name"]]
+            new_names.append(i["name"])
             i["remote_id"] = identity
             i["remote_origin"] = remote_origin
             if origin_is_client:
@@ -99,6 +105,7 @@ class PluginMemory:
                 j["remote_origin"] = remote_origin
                 self.function_list.append(j)
             # remote_plugin_to_module(i)
+        core_log.debug("Received new plugins: " + ", ".join(new_names))
         self.plugins = {**self.plugins, **plugin_dict}
 
     def add_remote_functions(self, func_list, plugin_id, origin_is_client=False):
@@ -158,22 +165,26 @@ class PluginMemory:
         return readable_str
 
     def pretty_print_plugins(self):
-        readable_str = ""
+        readable_str = "Plugin info:\n---------\n"
         for name, entry in self.plugins.items():
-            readable_str += f"{name}\nID:..{entry['id'][-5:] if 'id' in entry else entry['remote_id'][-5:]}," \
-                            f" TYPE:{entry['type']}, ALIVE:{entry['is_alive']}, N_TASKS: {entry['active_tasks']}\n"
-            for i in entry["functions"]:
-                readable_str += f"\t{generate_python_doc(i, include_docstr=False)}\n"
+            readable_str += self._pretty_print_plugin(entry)
         return readable_str
+
+    def _pretty_print_plugin(self, entry):
+        readable_str = ""
+        readable_str += f"Name: {entry['name']}\nID: {'LOCAL' if entry['type'] & FunctionPointerType.LOCAL else entry['remote_id']}," \
+                        f" TYPE:{entry['type']}, ALIVE:{entry['is_alive']}, N_TASKS: {entry['active_tasks']}\n"
+        for i in entry["functions"]:
+            readable_str += f"\t{generate_python_doc(i, include_docstr=False)}\n"
+        return readable_str
+
 
     def pretty_print_plugin(self, plugin_name):
         readable_str = ""
         entry = self.plugins.get(plugin_name)
         if not entry:
             return "Plugin not found"
-        readable_str += f"{plugin_name}\nID:..{entry['id'][-5:]}, TYPE:{entry['type']}, ALIVE:{entry['is_alive']}, N_TASKS: {entry['active_tasks']}\n"
-        for i in entry["functions"]:
-            readable_str += f"\t{generate_python_doc(i, include_docstr=False)}\n"
+        readable_str += self._pretty_print_plugin(entry)
         return readable_str
 
     def get_sendable_plugins(self, remote_id=-1, skip=None):
@@ -188,8 +199,6 @@ class PluginMemory:
                 continue
             if value["type"] & FunctionPointerType.REMOTE and not settings.ALLOW_NETWORK_RELAY:
                 continue
-            # prevent the remote plugin from receiving its own functions
-
             if "id" in value and value["id"] == remote_id:
                 continue
 
@@ -198,6 +207,10 @@ class PluginMemory:
                 sendable_plugin["type"] = FunctionPointerType.REMOTE
             elif sendable_plugin["type"] & FunctionPointerType.REMOTE:
                 sendable_plugin["type"] = FunctionPointerType.INDIRECT | FunctionPointerType.REMOTE
+
+            sendable_plugin["functions"] = [j for j in sendable_plugin["functions"] if
+                                            not j["type"] & FunctionPointerType.LOCAL_ONLY]
+
             sendable_dict[key] = sendable_plugin
 
         # clean up i.e. remove pointers and other unnecessary data from function entries
@@ -214,27 +227,9 @@ class PluginMemory:
                 elif j["type"] & FunctionPointerType.REMOTE:
                     j["type"] = FunctionPointerType.INDIRECT | FunctionPointerType.REMOTE
 
-        return sendable_dict
+        sendable_dict = {k: v for k, v in sendable_dict.items() if v["functions"]}
 
-    # def get_sendable_func_list(self, remote_id):
-    #     # DEPRECATED AND TO BE REMOVED. Use get_sendable_plugin_list instead
-    #     if settings.ALLOW_NETWORK_RELAY:
-    #         # only send functions that are not remote
-    #         sendable_list = []
-    #         for i in self.function_list:
-    #             if i["type"] & FunctionPointerType.REMOTE:
-    #                 continue
-    #             sendable_dict = i.copy()
-    #             sendable_dict.pop("pointer")
-    #             sendable_list.append(sendable_dict)
-    #         return sendable_list
-    #
-    #     sendable_list = []
-    #     for i in self.function_list:
-    #         sendable_dict = i.copy()
-    #         sendable_dict.pop("pointer")
-    #         sendable_list.append(sendable_dict)
-    #     return sendable_list
+        return sendable_dict
 
     def clean(self):
         with self.lock:
@@ -243,17 +238,17 @@ class PluginMemory:
                 return
             utils.remove_plugin(self.ID)
             self.is_clean = True
-            if self.executor:
-                self.executor.shutdown()
-            if self.listener_socket:
-                self.listener_socket.close()
-            for i in self._client_connections:
-                i.close()
-            if self.zmq_context:
-                self.zmq_context.term()
-
-    # def __del__(self):
-    #     self.clean()
+            try:
+                if self.executor:
+                    self.executor.shutdown()
+                if self.listener_socket:
+                    self.listener_socket.close()
+                for i in self._client_connections:
+                    i.close()
+                if self.zmq_context:
+                    self.zmq_context.term()
+            except:
+                pass
 
     @staticmethod
     def purge():

@@ -54,7 +54,7 @@ class RIXAFilter(logging.Filter):
         # Attach ID as attribute to log record. But memory may not be initialized yet
         if not self.session_id:
             try:
-                from .memory import _memory
+                from rixaplugin.internal.memory import _memory
                 self.session_id = _memory.ID[-4:]
             except ImportError:
                 pass
@@ -197,10 +197,6 @@ class JupyterLoggingHandler(logging.Handler):
 
     def emit(self, record):
         # Format the record and append it to the messages list
-        with open("/home/finn/Fraunhofer/other stuff/network/a.txt", "a") as f:
-            f.write(str(record.__dict__))
-            f.write("\n\n\n")
-
         if record.levelno<10:
             return
         message = self.format(record)

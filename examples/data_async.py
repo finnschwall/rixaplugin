@@ -2,7 +2,8 @@
 from typing import Tuple
 import pandas as pd
 import numpy as np
-from rixaplugin import global_init, worker_init, plugfunc, PluginVariable, api
+from rixaplugin import global_init, worker_init, plugfunc, PluginVariable
+from rixaplugin.internal import api
 import plotly.graph_objs as go
 import plotly.express as px
 

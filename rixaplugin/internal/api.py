@@ -6,9 +6,8 @@ import functools
 
 import zmq
 
-from .memory import _memory, get_function_entry
-from .pylot import python_parsing, proxy_builder
-import sys
+from rixaplugin.internal.memory import _memory, get_function_entry
+from rixaplugin.pylot import python_parsing, proxy_builder
 import asyncio
 import pickle
 import logging
@@ -72,11 +71,6 @@ def construct_api_module():
             else:
                 api_callable = getattr(api_obj, name)
                 return asyncio.run_coroutine_threadsafe(api_callable(args, kwargs), _memory.event_loop)
-                # if api_obj.is_remote:
-                #     return asyncio.run_coroutine_threadsafe(api_obj.__call_remote__(name, args, kwargs), _memory.event_loop)
-                # else:
-                #     api_callable = getattr(api_obj, name)
-                #     return asyncio.run_coroutine_threadsafe(api_callable(*args, **kwargs), _memory.event_loop)
         except AttributeError:
             raise AttributeError(f"API function {args[0]} not found")
 
@@ -88,8 +82,8 @@ def construct_api_module():
         except AttributeError:
             raise AttributeError(f"API function {args[0]} not found")
 
-    import rixaplugin.public.sync_api as sync_api
-    import rixaplugin.public.async_api as async_api
+    import rixaplugin.sync_api as sync_api
+    import rixaplugin.async_api as async_api
 
     sync_api_module = proxy_builder.create_module("sync_api", api_funcs, description="Synchronous API",
                                                   function_factory=factory_sync, module=sync_api)

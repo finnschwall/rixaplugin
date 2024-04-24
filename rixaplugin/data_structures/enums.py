@@ -30,6 +30,7 @@ class FunctionPointerType(AutoNumber):
     CLIENT = auto()
     SYNC = auto()
     ASYNC = auto()
+    LOCAL_ONLY = auto()
 
 class HeaderFlags(AutoNumber):
     NONE = 0
@@ -58,3 +59,14 @@ class Scope(AutoNumber):
     USER = auto()
     LOCAL = auto()
     SERVER = auto()
+
+
+class PluginModeFlags(Flag):
+    LOCAL = auto()
+    THREAD = auto()
+    PROCESS = auto()
+    IPC_SOCKET = auto()
+    NETWORK = auto()
+    CLIENT = auto()
+    SERVER = auto()
+    JUPYTER = auto()

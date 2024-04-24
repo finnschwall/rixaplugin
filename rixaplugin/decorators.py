@@ -1,11 +1,10 @@
 from rixaplugin.pylot.python_parsing import function_signature_to_dict
 from warnings import warn
-from .memory import _memory
-# _memory = PluginMemory()
+from rixaplugin.internal.memory import _memory
 import asyncio
 import functools
-from .enums import FunctionPointerType
-
+from rixaplugin.data_structures.enums import FunctionPointerType
+import inspect
 # def universal_decorator(func):
 #     @functools.wraps(func)
 #     async def wrapper_async(*args, **kwargs):
@@ -23,7 +22,7 @@ from .enums import FunctionPointerType
 #         return wrapper_sync
 
 
-def plugfunc(api_as_arg=True, api_as_kwarg=False):
+def plugfunc(local_only=False):
     def plugin_method(original_function):
         if _memory.plugin_system_active:
             raise Exception("Cant add plugins when plugin system has been started!")
@@ -35,8 +34,18 @@ def plugfunc(api_as_arg=True, api_as_kwarg=False):
             dic_entry["type"] |= FunctionPointerType.ASYNC
         else:
             dic_entry["type"] |= FunctionPointerType.SYNC
+        if local_only:
+            dic_entry["type"] |= FunctionPointerType.LOCAL_ONLY
         # dic_entry["coroutine"] = asyncio.iscoroutinefunction(original_function)
-        dic_entry["plugin_name"] = original_function.__module__.split(".")[-1]
+        fname = original_function.__module__.split(".")
+        if len(fname) > 1:
+            if fname[-1] == "py":
+                dic_entry["plugin_name"] = fname[-2]
+            else:
+                dic_entry["plugin_name"] = fname[-1]
+        else:
+            dic_entry["plugin_name"] = fname[0]
+        # print(inspect.getsourcefile(original_function))
         _memory.add_function(dic_entry)
 
         if is_coroutine:

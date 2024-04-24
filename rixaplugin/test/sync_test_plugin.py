@@ -1,7 +1,6 @@
 from rixaplugin.decorators import plugfunc
-from rixaplugin.variables import PluginVariable
 # from rixaplugin.api import PublicSyncApi as api
-import rixaplugin.public.sync_api as api
+import rixaplugin.sync_api as api
 import time
 
 

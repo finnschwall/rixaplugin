@@ -1,9 +1,8 @@
 from decouple import Config, RepositoryEnv, Csv, Choices, AutoConfig
 import os
-import logging
 import logging.config
-
-from . import rixalogger
+from rixaplugin.internal.rixalogger import RIXALogger as _RIXALogger
+from .internal import rixalogger
 
 # DOC_BUILD = "BUILD_DOCS" in os.environ and os.environ["BUILD_DOCS"] == "True"
 #
@@ -31,7 +30,7 @@ from . import rixalogger
 #                                 f"Is the working dir read only?")
 config_dir = "."
 
-#Config(RepositoryEnv(os.path.join(config_dir, "config.ini")))
+# Config(RepositoryEnv(os.path.join(config_dir, "config.ini")))
 
 
 try:
@@ -46,8 +45,8 @@ except KeyError:
     else:
         config_dir = os.path.abspath(config_dir)
         config = AutoConfig()
-        import warnings
-        warnings.warn("RIXA_WD not set. Using current directory as working directory.")
+        # import warnings
+        # warnings.warn("RIXA_WD not set. Using current directory as working directory.")
         # raise Exception(
         #     f"The folder '{current_directory}' from which you started the server does not seem to be a RIXA working directory."
         #     f"Either change into a working dir or set the 'RIXA_WD' env var.")
@@ -56,15 +55,21 @@ except KeyError:
 # WORKING_DIRECTORY = os.path.abspath(config_dir)
 
 
-
 DEBUG = config("DEBUG_MODE", default=True, cast=bool)
 
+ACCEPT_REMOTE_PLUGINS = config("ACCEPT_REMOTE_PLUGINS", default=2, cast=int)
+"""Whether or not to retrieve remote plugins.
+Usually set to true for servers and to false for clients.
+Only activate for clients when remote calling other plugins is required for your plugin code.
+0: Deny, 1 Allow, 2 automatic
+"""
 
-ALLOW_NETWORK_RELAY = config("ALLOW_NETWORK_RELAY", default=True, cast=bool)
+ALLOW_NETWORK_RELAY = config("ALLOW_NETWORK_RELAY", default=False, cast=bool)
 """If there are servers A B and C, where B is this server, this setting controls if A can send messages to C through B,
 and vice versa.
 Usually this is only activated for the main server.
-If activated on most/all servers, a decentralized system is possible (at cost of performance)."""
+This also controls whether this instance sends infos on connected plugins to newly connected instances.
+If activated on most/all servers, a decentralized system is possible (at cost of performance. Also kinda buggy as of now)."""
 
 ALLOWED_PLUGIN_HOSTS = config("ALLOWED_HOSTS", default="localhost", cast=Csv())
 """List of domains which the plugin server serves. '*' means all connections will be accepted.
@@ -73,7 +78,6 @@ ALLOWED_PLUGIN_HOSTS = config("ALLOWED_HOSTS", default="localhost", cast=Csv())
 logfile_path = config("LOG_LOC", default="log/main")
 """Where logfile is located. Without starting `/` it is considered relative to the working directory.
 """
-
 
 PLUGIN_REGISTRY = config("PLUGIN_REGISTRY", default="/tmp/plugin_registry.json")
 
@@ -89,15 +93,15 @@ DISABLED_LOGGERS = config("DISABLED_LOGGERS", cast=Csv(), default='')
 
 DISABLED_LOGGERS += ['daphne.http_protocol', 'daphne.server', 'daphne.ws_protocol', 'django.channels.server',
                      'asyncio', 'openai', "urllib3", "matplotlib", "sentence_transformers.SentenceTransformer",
-                     "IPKernelApp","ipykernel","Comm","ipykernel.comm"]
+                     "IPKernelApp", "ipykernel", "Comm", "ipykernel.comm", "httpcore", "httpx"]
 disabled_logger_conf = {i: {'level': 'WARNING'} for i in DISABLED_LOGGERS}
-# for i in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
-#     if i.name in DISABLED_LOGGERS:
-#         i.disabled = True
+for i in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
+    if i.name in DISABLED_LOGGERS:
+        i.disabled = True
 
 LOG_FMT = config("LOG_FMT",
                  # default="%(levelname)s:%(name)s \"%(message)s\" %(asctime)s-(File \"%(filename)s\", line %(lineno)d)"
-default="%(levelname)s:%(name)s:%(session_id)s \"%(message)s\" (File \"%(filename)s\", line %(lineno)d)"
+                 default="%(levelname)s:%(name)s:%(session_id)s \"%(message)s\" (File \"%(filename)s\", line %(lineno)d)"
                  )
 """Format to be used for logging. See https://docs.python.org/3/library/logging.html#logrecord-attributes
 There is an additional session_id attribute. It's behaviour is defined by LOG_UID_MODE
@@ -115,13 +119,15 @@ with control sequences. Use this to deactivate colors in the console.
 
 LOG_TIME_FMT = config("LOG_TIME_FMT", default="%H:%M:%S")
 
-logging.setLoggerClass(rixalogger.RIXALogger)
+LOG_LEVEL = config("LOG_LEVEL", default="INFO")
+
+logging.setLoggerClass(_RIXALogger)
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'RIXAConsole': {
-            '()': 'rixaplugin.rixalogger.RIXAFormatter',
+            '()': 'rixaplugin.internal.rixalogger.RIXAFormatter',
             "colormode": "console" if CONSOLE_USE_COLORS else "none",
             "fmt_string": LOG_FMT,
             "time_fmt": LOG_TIME_FMT
@@ -135,13 +141,13 @@ LOGGING = {
     },
     'filters': {
         'RIXAFilter': {
-            '()': 'rixaplugin.rixalogger.RIXAFilter',
-    #         "uid_mode": LOG_UID_MODE
+            '()': 'rixaplugin.internal.rixalogger.RIXAFilter',
+            #         "uid_mode": LOG_UID_MODE
         }
     },
     'handlers': {
         'console': {
-            'level': 'WARNING',
+            'level': LOG_LEVEL,
             'filters': ['RIXAFilter'],
             'class': 'logging.StreamHandler',
             'formatter': 'RIXAConsole'
@@ -151,7 +157,7 @@ LOGGING = {
             'maxBytes': MAX_LOG_SIZE * 1024,
             'backupCount': 2,
             'filename': logfile_path,
-            'level': 'DEBUG',
+            'level': LOG_LEVEL,
             'filters': ['RIXAFilter'],
             'formatter': 'RIXAFile',
         } if LOG_FILE_TYPE != "none" else {'class': "logging.NullHandler"}

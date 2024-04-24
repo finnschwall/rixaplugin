@@ -16,31 +16,37 @@ You can extend functionality either for the webserver or an LLM using this.
 Alternatively this can be used to connect to any RIXAplugin.
 
 ## Installation
-Don't.
-
+```
+pip3 install git+https://github.com/finnschwall/rixaplugin#egg=rixaplugin[normal]
+```
 
 ## Getting Started
 
-To embark on your journey with this, follow these steps:
-
-1. **Clone the Repository**:
-   ```
-   git clone https://github.com/fake/DRPCF.git
-   ```
-   Installing from pip will come soon-ish.
-
-2. **Environment Setup**:
-   Install directly via
-   '''pip install -e PATH_TO_CLONED_REPO'''
+### Configuring a plugin
+Create a `config.ini` in the same folder. For more infos see the settings section in the [docs](https://finnschwall.github.io/rixaplugin/).
 
 
-3. **Implement Your Plugins**:
-   WIP
+### Running or connecting a plugin
+Run a plugin file via the rixaplugin command line tool.
 
-4. **Launch or connect**:
-   WIP
+#### As server
+Runs the plugin as a server. Allows connections from other plugins.
+```bash
+rixaplugin start_as_server path/to/plugin.py
+```
+
+#### As client
+Runs the plugin as a client. Connects to a server.
+```bash
+rixaplugin start_as_client path/to/plugin.py ADDRESS PORT
+```
+
+#### Advanced
+Use `create_and_start_plugin_server` and `create_and_start_plugin_client` for advanced use cases.
+This also allows for hybrid server/client plugins. Be advised that a plugin can only run 1 server.
+However there is no limit to the amount of servers a client can connect to.
 
 
 ## Documentation
 
-[DOCS](https://finnschwall.github.io/rixaplugin/))
+[DOCS](https://finnschwall.github.io/rixaplugin/)
