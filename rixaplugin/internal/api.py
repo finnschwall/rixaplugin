@@ -67,10 +67,14 @@ def construct_api_module():
                 except Exception as e:
                     raise e
                 _socket.get().send(parsed)
-
             else:
                 api_callable = getattr(api_obj, name)
-                return asyncio.run_coroutine_threadsafe(api_callable(args, kwargs), _memory.event_loop)
+                if api_obj.is_remote:
+                    future = asyncio.run_coroutine_threadsafe(api_callable(args, kwargs), _memory.event_loop)
+                else:
+                    future = asyncio.run_coroutine_threadsafe(api_callable(*args, **kwargs), _memory.event_loop)
+                return_val = future.result()
+                return return_val
         except AttributeError:
             raise AttributeError(f"API function {args[0]} not found")
 
@@ -119,13 +123,29 @@ class BaseAPI:
     async def display(self, html=None, json=None, plotly=None, text=None):
         # base implementation works in maximum compatibility mode i.e. just prints
         if html:
-            print("HTML : ", html)
+            print("HTML : ", html[:100])
         if json:
-            print("JSON : ", json)
+            print("JSON : ", json[:100])
         if plotly:
             print("Plotly was passed")
         if text:
             print("Text : ", text)
+
+    async def display_in_chat(self, text = None, html = None, json_str = None, plotly_obj = None,):
+        # base implementation works in maximum compatibility mode i.e. just prints
+        if html:
+            print("HTML : ", html[:100])
+        if json_str:
+            print("JSON : ", json_str[:100])
+        if plotly_obj:
+            print("Plotly was passed")
+        if text:
+            print("Text : ", text)
+
+    async def execute_code_on_remote(self, code):
+        fut = await executor.execute_code(code, api_obj=self, return_future=True)
+        ret = await fut
+        return ret
 
     async def save_usr_obj(self, key, value, sync_db=False):
         global __fake_usr_data
@@ -188,28 +208,6 @@ class BaseAPI:
         pass
 
 
-# class PublicSyncApi(BaseAPI):
-#     """
-#     API class for public sync calls.
-#
-#     Abstracts away the retrieval of the actual API obj stored in the context.
-#     """
-#
-#     @staticmethod
-#     def get_call_api():
-#         global _plugin_ctx
-#         return _plugin_ctx.get()
-#
-#     def __getattribute__(self, item):
-#         print(item)
-#         attr = super().__getattribute__(item)
-#         if callable(attr) and hasattr(BaseAPI, item) and not item.startswith("__"):
-#             api = PublicSyncApi.get_call_api()
-#             actual_api_method = getattr(api, item)
-#             return actual_api_method
-#         else:
-#             return attr
-
 
 class RemoteAPI(BaseAPI):
     """
@@ -225,10 +223,6 @@ class RemoteAPI(BaseAPI):
         self.is_remote = True
         self.network_adapter = network_adapter
 
-    # async def __call_remote__(self, name, args, kwargs):
-    #     print("NETWORK", self.network_adapter)
-    #     await self.network_adapter.send_api_call(self.request_id, self.identity, name, args, kwargs)
-
     def __getattribute__(self, item):
         attr = super().__getattribute__(item)
         if callable(attr) and hasattr(BaseAPI, item) and not item.startswith("__"):
@@ -237,39 +231,6 @@ class RemoteAPI(BaseAPI):
             return attr
 
 
-# class ProcessAPI(BaseAPI):
-#     """
-#     API class for spawned processes.
-#
-#     Relays all calls to main process.
-#     """
-#
-#     def __init__(self, request_id, identity):
-#         self.request_id = request_id
-#         self.identity = identity
-#
-#     def __get_global_ctx__(self):
-#         print("hey")
-#
-#     def __getattribute__(self, item):
-#         global _socket
-#         attr = super().__getattribute__(item)
-#         print("Close enough?")
-#         if item == "__get_global_ctx__":
-#             return self.__get_global_ctx__()
-#         if callable(attr) and hasattr(BaseAPI, item) and not item.startswith("__"):
-#             print("ITEM", item)
-#             try:
-#                 parsed = pickle.dumps(item)
-#             except Exception as e:
-#                 print("?")
-#                 raise e
-#             print("??")
-#             _socket.send(parsed)
-#             print("???")
-#         else:
-#             return attr
-# self.network_adapter.send_api_call(self.request_id, self.identity, item)
 
 
 class JupyterAPI(BaseAPI):
@@ -280,8 +241,8 @@ class JupyterAPI(BaseAPI):
     Strongly recommended for development and testing.
     """
 
-    def __init__(self):
-
+    def __init__(self, request_id, identity):
+        super().__init__(request_id, identity)
         from IPython.display import display, HTML
         self.display = display
         self.HTML = HTML
@@ -295,7 +256,7 @@ class JupyterAPI(BaseAPI):
         if plotly:
             plotly.show()
         if text:
-            print(text)
+            print("DISPLAY", text)
 
     async def show_message(self, message, message_type="info"):
         self.display(self.HTML(f"<div class=\"alert alert-{message_type}\" role=\"alert\">{message}</div>"))
@@ -310,12 +271,14 @@ def _test_job():
 
 
 def _init_thread_worker():
+    global _mode
+    _mode.set(1)
     for func in _memory.worker_init:
         func()
 
 
 def _init_process_worker(plugin_id):
-    global _zmq_context, _socket, _plugin_id
+    global _zmq_context, _socket, _plugin_id, _mode
     # worker_ctx = _context.get()
     for func in _memory.worker_init:
         func()
@@ -324,6 +287,7 @@ def _init_process_worker(plugin_id):
     _socket.set(socket)
     socket.connect(f"ipc:///tmp/worker_{plugin_id}.ipc")
     _plugin_id = plugin_id
+    _mode.set(2)
 
     #     try:
     #
@@ -332,6 +296,9 @@ def _init_process_worker(plugin_id):
     #         abort_message = {"ABORT":"ABORT"}
     #         socket.send(pickle.dumps(abort_message))
 
+
+def get_api():
+    return _plugin_ctx.get()
 
 def _call_function_sync_process(name, plugin_name, req_id, args, kwargs, ):
     global _req_id
@@ -355,7 +322,12 @@ async def _call_function_async(func, api_obj, args, kwargs, return_future=True):
     return await func(*args, **kwargs)
 
 
-_plugin_ctx = contextvars.ContextVar('__plugin_api', default=BaseAPI(0, 0))
+def relay_module(*args,**kwargs):
+    global _mode
+    print("RELAY", _mode.get(),args,kwargs)
+
+
+_plugin_ctx = contextvars.ContextVar('__plugin_api', default=BaseAPI(-1, -1))
 __fake_usr_data = {}
 _zmq_context = None
 _context = contextvars.ContextVar('_context', default={})
@@ -364,9 +336,10 @@ _plugin_id = None
 _req_id = contextvars.ContextVar('_req_id', default=None)
 _identity = contextvars.ContextVar('_identity', default=None)
 _socket = contextvars.ContextVar('_socket', default=None)
+_mode = contextvars.ContextVar('_mode', default=0)
 
 # def _call_function_async(func, args, kwargs, api_obj=None, return_future = True):
-
+from rixaplugin.internal import executor
 
 # set ctx vars for API
 # def _call_function(func, args, kwargs, request_id, identity, callstack_type : CallstackType):

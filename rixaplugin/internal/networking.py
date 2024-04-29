@@ -1,9 +1,12 @@
+import pickle
+
 import msgpack
 
 import rixaplugin.internal.rixalogger
 from rixaplugin.internal import utils
 from rixaplugin.internal.memory import _memory
 from rixaplugin.data_structures.enums import HeaderFlags
+
 import zmq.auth
 
 from rixaplugin.data_structures.rixa_exceptions import RemoteException
@@ -18,6 +21,10 @@ network_log = logging.getLogger("network")
 # network_log.setLevel(0)
 # network_log.addHandler(logging.FileHandler("network.log"))
 
+
+#bad hack but required for now
+# msgpack.packb = pickle.dumps
+# msgpack.unpackb = pickle.loads
 
 def generate_curve_keys(key_dir):
     s_pub, s_sec = zmq.auth.create_certificates(key_dir, "server")
@@ -64,6 +71,7 @@ class NetworkAdapter:
         if not already_serialized:
             try:
                 data = msgpack.packb(data)
+                # data = pickle.dumps(data)
             except Exception as e:
                 network_log.error(f"A message could not be serialized: {data}")
                 # return
@@ -86,6 +94,8 @@ class NetworkAdapter:
 
     async def send_exception(self, identity, request_id, exception):
         # RemoteException(exception_info['type'], exception_info['message'], exception_info['traceback']
+        if settings.LOG_REMOTE_EXCEPTIONS_LOCALLY:
+            network_log.exception(f"Remote exception in {request_id}")
         exc_str = rixaplugin.internal.rixalogger.format_exception(exception, without_color=True)
 
         ret = {"HEAD": HeaderFlags.EXCEPTION_RETURN, "message": str(exception), "request_id": request_id,
@@ -124,8 +134,6 @@ class NetworkAdapter:
         future = _memory.event_loop.create_future()
         if not one_way:
             self.pending_requests[request_id] = future
-        else:
-            self.pending_requests[request_id] = None
 
         remote_func_type = plugin_entry["type"]
         await self.send(plugin_entry["remote_id"], message)
@@ -135,8 +143,7 @@ class NetworkAdapter:
         if not answer:
             _memory.plugins[plugin_entry["plugin_name"]]["is_alive"] = False
             del self.api_objs[request_id]
-            raise Exception(f"No acknowledgement for function call. Plugin '{plugin_entry['name']}' offline?")
-
+            raise Exception(f"No acknowledgement for function call. Plugin '{plugin_entry['plugin_name']}' offline?")
         time_estimate = self.time_estimate[request_id]
         del self.time_estimate[request_id]
         del self.time_estimate_events[request_id]
@@ -188,7 +195,8 @@ class NetworkAdapter:
 
 
             except Exception as e:
-                network_log.exception(f"Message header faulty: Error:\n{e}")
+                network_log.exception(f"Network error:\n{e}")
+                raise e
                 self.error_count += 1
                 if self.error_count > 10 and not _memory.debug_mode:
                     network_log.error("Incoming requests are invalid. This can't stem from this library. "
@@ -266,13 +274,15 @@ class NetworkAdapter:
         elif header_flags & HeaderFlags.EXCEPTION_RETURN:
             request_id = msg.get("request_id")
             asyncio.create_task(self.trigger_api_deletion(request_id))
+            exc = RemoteException(msg['type'], msg['message'], msg['traceback'])
             if request_id in self.pending_requests:
-                exc = RemoteException(msg['type'], msg['message'], msg['traceback'])
-                # TODO proper traceback?
-                self.pending_requests[request_id].set_exception(exc)
-                del self.pending_requests[request_id]
+                if request_id in self.pending_requests:
+                    self.pending_requests[request_id].set_exception(exc)
+                    del self.pending_requests[request_id]
+                else:
+                    network_log.warning(f"Exception occured in one way call: {exc}")
             else:
-                network_log.warning(f"Received exception for unknown request id: {request_id}")
+                network_log.warning(f"Received exception for unknown request id: {exc}")
 
         elif header_flags & HeaderFlags.TIME_ESTIMATE_AND_ACKNOWLEDGEMENT:
             request_id = msg.get("request_id")
@@ -356,7 +366,7 @@ async def create_and_start_plugin_client(server_address, port=2809, raise_on_con
                 return None
     except zmq.ZMQError as e:
         raise Exception(f"Failed to connect to {server_address}:{port}\n{e}")
-    future = asyncio.create_task(client.listen())
+    future = _memory.event_loop.create_task(client.listen())
     if return_future:
         return client, future
     else:

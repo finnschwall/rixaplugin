@@ -57,6 +57,10 @@ except KeyError:
 
 DEBUG = config("DEBUG_MODE", default=True, cast=bool)
 
+LOG_REMOTE_EXCEPTIONS_LOCALLY = config("LOG_EXCEPTIONS_LOCALLY", default=True, cast=bool)
+"""Log exceptions (that occurred locally) but are meant for remote plugins to the local log stream
+"""
+
 ACCEPT_REMOTE_PLUGINS = config("ACCEPT_REMOTE_PLUGINS", default=2, cast=int)
 """Whether or not to retrieve remote plugins.
 Usually set to true for servers and to false for clients.
@@ -79,6 +83,8 @@ logfile_path = config("LOG_LOC", default="log/main")
 """Where logfile is located. Without starting `/` it is considered relative to the working directory.
 """
 
+MAKE_REMOTES_IMPORTABLE = config("MAKE_REMOTES_IMPORTABLE", default=True, cast=bool)
+
 PLUGIN_REGISTRY = config("PLUGIN_REGISTRY", default="/tmp/plugin_registry.json")
 
 LOG_FILE_TYPE = config("LOG_FILE_TYPE", default="none", cast=Choices(["none", "html", "txt"]))
@@ -92,8 +98,9 @@ DISABLED_LOGGERS = config("DISABLED_LOGGERS", cast=Csv(), default='')
 """
 
 DISABLED_LOGGERS += ['daphne.http_protocol', 'daphne.server', 'daphne.ws_protocol', 'django.channels.server',
-                     'asyncio', 'openai', "urllib3", "matplotlib", "sentence_transformers.SentenceTransformer",
-                     "IPKernelApp", "ipykernel", "Comm", "ipykernel.comm", "httpcore", "httpx"]
+                    'openai', "urllib3", "matplotlib", "sentence_transformers.SentenceTransformer",
+                     "IPKernelApp", "ipykernel", "Comm", "ipykernel.comm", "httpcore", "httpx",
+                     "Comm"]
 disabled_logger_conf = {i: {'level': 'WARNING'} for i in DISABLED_LOGGERS}
 for i in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
     if i.name in DISABLED_LOGGERS:

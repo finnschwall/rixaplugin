@@ -1,6 +1,7 @@
 import atexit
 import concurrent
 import pickle
+import types
 from concurrent.futures import ThreadPoolExecutor
 import zmq
 
@@ -38,8 +39,62 @@ async def _start_process_server():
         else:
             await api_callable(*message[2], **message[3])
 
+import sys
+
+
+def fake_function(func_name, plugin_name, *args, **kwargs):
+    print(f"Fake function {func_name} called with {args} and {kwargs}")
+    # await execute(func_name, plugin_name, args, kwargs)
+
+
+
+# class EmptyModule(types.ModuleType):
+#     """
+#     A custom module that returns an empty module for any attribute access.
+#     """
+#     # def __init__(self, name):
+#     #     super().__init__(name)
+#     #     self._is_empty=True
+#     def __getattr__(self, name):
+#         print("WTF", name)
+#         if name.startswith("__") or name.startswith("_") or not self._is_empty:
+#             return super().__getattr__(name)
+#         return types.ModuleType(name)
+
+# sys.modules["rixaplugin.remote"] = EmptyModule("rixaplugin.remote")
+
+# def on_remote_plugin_import(name):
+#     module = types.ModuleType(name)#EmptyModule(name)
+#     module.__file__ = f"{name}.py"
+#     module.__doc__ = "Auto-generated module for RPC remote plugin"
+#     sys.modules[name] = module
+#     return module
+#
+# def install_import_hook():
+#     original_import = __builtins__['__import__']
+#     def custom_import(name, globals=None, locals=None, fromlist=(), level=0):
+#
+#         if name.startswith('remote_'):
+#             print(name)
+#             module = on_remote_plugin_import(name)
+#             _memory.remote_dummy_modules[name] = module
+#             return module
+#             print("A")
+#             if name == "rixaplugin.remote":
+#                 return on_remote_plugin_import(name)
+#             module = types.ModuleType(name)#on_remote_plugin_import(name)
+#
+#             return module
+#         return original_import(name, globals, locals, fromlist, level)
+#     __builtins__['__import__'] = custom_import
+#
+# install_import_hook()
+
 
 def init_plugin_system(mode=PMF_DebugLocal, num_workers=2, debug=False, max_jupyter_messages=10):
+    if _memory.plugin_system_active:
+        raise Exception("Plugin system already initialized. You'll need to restart the process to reinitialize.")
+
     if debug:
         asyncio.get_event_loop().set_debug(True)
         core_log.setLevel(logging.DEBUG)
@@ -93,7 +148,6 @@ async def execute_networked(func_name, plugin_name, args, kwargs, oneway, reques
         if not oneway:
             await network_adapter.send_return(identity, request_id, return_val)
     except Exception as e:
-        # print(rixaplugin.rixalogger.format_exception(e, without_color=True))
         await network_adapter.send_exception(identity, request_id, e)
 
 
@@ -103,7 +157,18 @@ async def _execute_code(ast_obj, api_obj):
         return await fut
 
     visitor = python_parsing.CodeVisitor(_code_visitor_callback, _memory.function_list)
+
     await visitor.visit(ast_obj)
+
+    # function_missing = None
+    # try:
+    #     await visitor.visit(ast_obj)
+    # except FunctionNotFoundException as f:
+    #     function_missing = f.message
+    # if function_missing:
+    #     exc =  FunctionNotFoundException("")
+    #     exc.message = function_missing
+    #     raise exc
     if "__call_res__" in visitor.variables:
         ret_val = visitor.variables["__call_res__"]
     else:
@@ -113,7 +178,7 @@ async def _execute_code(ast_obj, api_obj):
     return ret_val
 
 
-async def execute_code(code, api_obj=None, return_future=True):
+async def execute_code(code, api_obj=None, return_future=True, timeout=30):
     """Execute (a string) as code in the plugin system.
 
     This is not meant for normal programming, as functionality is severely limited.
@@ -124,13 +189,23 @@ async def execute_code(code, api_obj=None, return_future=True):
 
     if api_obj is None:
         api_obj = api.BaseAPI(0, 0)
+        # cur_api = api._plugin_ctx.get()
+        # if cur_api.request_id == -1 and cur_api.identity==-1:
+        #     if _memory.mode & PluginModeFlags.JUPYTER:
+        #         api_obj = api.JupyterAPI(0, 0)
+        #     else:
+        #         api_obj = api.BaseAPI(0, 0)
+        # else:
+        #     api_obj = cur_api
 
     ast_obj = ast.parse(code)
 
     future = asyncio.create_task(_execute_code(ast_obj, api_obj))
 
+
     if return_future:
         return future
+        #return await _wait_for_return(future, timeout)
     else:
         await supervise_future(future)
 
@@ -178,16 +253,24 @@ async def _wait_for_return(future, timeout):
         raise RemoteTimeoutException(f"Remote function call timed out after {timeout} seconds.")
 
 async def _execute(plugin_entry, args=(), kwargs={}, api_obj=None, return_future=False, return_time_estimate=False,
-                   timeout=10):
-    if not api_obj:
+                   timeout=30):
+    if api_obj is None:
         api_obj = api.BaseAPI(0, 0)
+        # cur_api = api._plugin_ctx.get()
+        # if cur_api.request_id == -1 and cur_api.identity==-1:
+        #     if _memory.mode & PluginModeFlags.JUPYTER:
+        #         api_obj = api.JupyterAPI(0, 0)
+        #     else:
+        #         api_obj = api.BaseAPI(0, 0)
+        # else:
+        #     api_obj = cur_api
+    # print(plugin_entry["name"], plugin_entry["type"], type(api_obj))
     if plugin_entry["type"] & FunctionPointerType.LOCAL:
         if plugin_entry["type"] & FunctionPointerType.SYNC:
             return await execute_sync(plugin_entry, args, kwargs, api_obj, return_future=return_future)
         else:
             return await execute_async(plugin_entry, args, kwargs, api_obj, return_future=return_future)
     elif plugin_entry["type"] & FunctionPointerType.REMOTE:
-
         if not _memory.plugins[plugin_entry["plugin_name"]]["is_alive"]:
             raise Exception(f"{plugin_entry['plugin_name']} is currently unreachable.")
         _memory.plugins[plugin_entry["plugin_name"]]["active_tasks"] += 1
@@ -195,16 +278,18 @@ async def _execute(plugin_entry, args=(), kwargs={}, api_obj=None, return_future
         fut, est = await plugin_entry["remote_origin"].call_remote_function(plugin_entry, api_obj, args, kwargs, not return_future,
                                                                         return_time_estimate=True)
         if return_time_estimate:
-            return await _wait_for_return(fut, 3), est
+            return fut, est
+            # return await _wait_for_return(fut, timeout), est
         else:
-            return await _wait_for_return(fut, timeout)
+            return fut
+            # return await _wait_for_return(fut, timeout)
 
 
     raise NotImplementedError()
 
 
-async def execute(function_name, plugin_name=None, args=(), kwargs={}, api_obj=None, return_future=False,
-                  return_time_estimate=False, timeout=10):
+async def execute(function_name, plugin_name=None, args=None, kwargs=None, api_obj=None, return_future=False,
+                  return_time_estimate=False, timeout=30):
     """
     Execute a function in the plugin system.
 
@@ -227,11 +312,19 @@ async def execute(function_name, plugin_name=None, args=(), kwargs={}, api_obj=N
     Returns:
         Future or any: If return_future is True, it returns a Future object. Otherwise, it returns the result of the function call.
     """
+    if kwargs is None:
+        kwargs = {}
+    if args is None:
+        args=()
     if not _memory.plugin_system_active:
         raise Exception("Plugin system not initialized")
     if not api_obj:
         req_id = utils.identifier_from_signature(function_name, args, kwargs)
-        api_obj = api.BaseAPI(req_id, _memory.ID)
+        if _memory.mode & PluginModeFlags.JUPYTER:
+            api_obj = api.JupyterAPI(req_id, _memory.ID)
+        else:
+            api_obj = api.BaseAPI(req_id, _memory.ID)
+
     plugin_entry = get_function_entry(function_name, plugin_name)
     utils.is_valid_call(plugin_entry, args, kwargs)
     return await _execute(plugin_entry, args, kwargs, api_obj, return_future=return_future,

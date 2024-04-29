@@ -181,7 +181,7 @@ class JupyterLoggingHandler(logging.Handler):
     def __init__(self, max_messages=10):
         super().__init__()
         self.output_stream = io.StringIO()
-        from .settings import LOG_FMT, LOG_TIME_FMT
+        from rixaplugin.settings import LOG_FMT, LOG_TIME_FMT
         # self.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         self.setFormatter(RIXAFormatter("html", LOG_FMT, LOG_TIME_FMT))
         # add rixafilter

@@ -63,7 +63,6 @@ async def supervisor(future, id=None):
         await future
     except Exception as e:
         task_superviser_log.exception(f"Supervision error" + (f" with id {id}" if id else ""))
-        # print(f"Supervision Error: {e}")
 
 
 async def supervise_future(future, id=None):

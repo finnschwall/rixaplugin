@@ -16,7 +16,7 @@ def class_to_func_signatures(cls):
         function_specs.append(function_signature_to_dict(method))
     return function_specs
 
-def generate_python_doc(func_dict, include_docstr=True):
+def generate_python_doc(func_dict, include_docstr=True, short=False):
     func_name = func_dict.get('name', "UNKNOWN")
     args = func_dict.get('args', [])
     kwargs = func_dict.get('kwargs', [])
@@ -36,16 +36,22 @@ def generate_python_doc(func_dict, include_docstr=True):
     if include_docstr:
         docstr = ""
         if "description" in func_dict and func_dict["description"] is not None and func_dict["description"] != "":
-            docstr += func_dict["description"] + "\n"
-        for arg in args:
-            if "description" in arg:
-                docstr += f":param {arg['name']}: {arg.get('description', '')}\n"
-        for kwarg in kwargs:
-            docstr += f":param {kwarg['name']}: {kwarg.get('description', '')}\n"
-        if "return" in func_dict:
+            docstr += ""+ func_dict["description"] + "\n"
+            if "long_description" in func_dict and func_dict["long_description"] is not None and func_dict["long_description"] != "" and not short:
+                docstr += "\n" + func_dict["long_description"] + "\n"
+        if not short:
+            for arg in args:
+                if "description" in arg:
+                    docstr += f":param {arg['name']}: {arg.get('description', '')}\n"
+            for kwarg in kwargs:
+                docstr += f":param {kwarg['name']}: {kwarg.get('description', '')}\n"
+        if "return" in func_dict and func_dict["return"] is not None and func_dict["return"] != "" and not short:
             docstr += ":return: " + func_dict["return"]
         if docstr != "":
-            doc += '\n"""\n' + docstr + '"""'
+            docstr = '\n"""\n' + docstr + '"""'
+            docstr = docstr.split("\n")
+            docstr = "\n".join([f"\t{line}" for line in docstr])
+            doc += docstr
     return doc
 
 
@@ -96,6 +102,8 @@ def function_signature_to_dict(func):
     return {
         'name': func.__name__,
         'description': doc.short_description,
+        'long_description': doc.long_description,
+        'return': doc.returns.description if doc.returns else None,
         'args': args,
         'kwargs': kwargs,
         'has_var_positional': has_var_positional,
@@ -136,7 +144,7 @@ class CodeVisitor(ast.NodeVisitor):
                 break
 
         if not resolved_func:
-            raise FunctionNotFoundException(f"Function {func_name} not found")
+            raise FunctionNotFoundException(f"'{func_name}' not found")
         # TODO fix this. Really doesnt help as of now
         # self.check_signature_compatibility(node, resolved_func)
 

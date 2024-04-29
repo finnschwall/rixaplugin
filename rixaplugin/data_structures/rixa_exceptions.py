@@ -1,7 +1,8 @@
 class FunctionNotFoundException(Exception):
-    def __init__(self, function_name, message="Function not found"):
-        self.function_name = function_name
-        self.message = f"{message}: {function_name}"
+    def __init__(self, message="Function not found"):
+        # self.function_name = function_name
+        self.message = message
+        # self.message = f"{message}: {function_name}"
         super().__init__(self.message)
 
 

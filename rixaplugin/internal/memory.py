@@ -1,5 +1,8 @@
+import importlib
+import sys
 import threading
 
+from rixaplugin.pylot.proxy_builder import create_module
 from rixaplugin.pylot.python_parsing import generate_python_doc
 import zmq.asyncio as aiozmq
 import logging
@@ -26,7 +29,7 @@ def get_function_entry(name, plugin_name=None):
             raise PluginNotFoundException(plugin_name)
         filtered_entries = [d for d in plugin_entry["functions"] if d.get("name") == name]
         if len(filtered_entries) == 0:
-            raise FunctionNotFoundException(f"Plugin '{plugin_name}' found, but not function:", name)
+            raise FunctionNotFoundException(f"Plugin '{plugin_name}' found, but not function: '{name}'")
         return filtered_entries[0]
 
 
@@ -67,6 +70,7 @@ class PluginMemory:
         self.ID = secrets.token_hex(8)
         self.max_queue = 10
         self.allow_remote_functions = True if settings.ACCEPT_REMOTE_PLUGINS != 0 else False
+        self.remote_dummy_modules = {}
 
     def add_function(self, signature_dict, id=None, fn_type=FunctionPointerType.LOCAL):
         if not id:
@@ -106,6 +110,19 @@ class PluginMemory:
                 self.function_list.append(j)
             # remote_plugin_to_module(i)
         core_log.debug("Received new plugins: " + ", ".join(new_names))
+        # if settings.MAKE_REMOTES_IMPORTABLE:
+        #     for name, plugin in plugin_dict.items():
+        #         if name in self.remote_dummy_modules:
+        #             from rixaplugin.internal import api
+        #             remote_module = create_module("rixaplugin.remote" + name, plugin["functions"],
+        #                                           function_factory=api.relay_module)
+        #             old_module = self.remote_dummy_modules[name]
+        #             self.remote_dummy_modules[name] = remote_module
+        #             # importlib.reload(remote_module)
+        #             old_module_dict = old_module.__dict__
+        #             old_module_dict.clear()
+        #             old_module_dict.update(remote_module.__dict__)
+
         self.plugins = {**self.plugins, **plugin_dict}
 
     def add_remote_functions(self, func_list, plugin_id, origin_is_client=False):
@@ -178,7 +195,6 @@ class PluginMemory:
             readable_str += f"\t{generate_python_doc(i, include_docstr=False)}\n"
         return readable_str
 
-
     def pretty_print_plugin(self, plugin_name):
         readable_str = ""
         entry = self.plugins.get(plugin_name)
@@ -230,6 +246,19 @@ class PluginMemory:
         sendable_dict = {k: v for k, v in sendable_dict.items() if v["functions"]}
 
         return sendable_dict
+
+    def get_functions_for_llm(self, excluded_functions = None, excluded_plugins = None, short=False):
+        func_str = ""
+        #        for i in entry["functions"]:
+        #    readable_str += f"\t{generate_python_doc(i, include_docstr=False)}\n"
+        for key, val in self.plugins.items():
+            if excluded_plugins and key in excluded_plugins:
+                continue
+            for j in val["functions"]:
+                if excluded_functions and j["name"] in excluded_functions:
+                    continue
+                func_str += generate_python_doc(j, include_docstr=True, short=short) + "\n\n"
+        return func_str
 
     def clean(self):
         with self.lock:
