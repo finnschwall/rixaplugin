@@ -1,4 +1,6 @@
+import hashlib
 import importlib
+import os.path
 import sys
 import threading
 
@@ -67,7 +69,13 @@ class PluginMemory:
         self._client_connections = set()
         self.debug_mode = settings.DEBUG
         self.server = None
-        self.ID = secrets.token_hex(8)
+
+        id_str = os.path.abspath(__file__) + sys.platform + sys.version
+        hash_object = hashlib.sha256(id_str.encode())
+        hex_dig = hash_object.hexdigest()
+        self.ID = hex_dig[:16]
+
+        # self.ID = secrets.token_hex(8)
         self.max_queue = 10
         self.allow_remote_functions = True if settings.ACCEPT_REMOTE_PLUGINS != 0 else False
         self.remote_dummy_modules = {}
@@ -89,12 +97,19 @@ class PluginMemory:
 
         # add functions to function list
         new_names = []
+        to_pop = []
         for i in plugin_dict.values():
             if i["name"] in local_plugin_names:
                 core_log.warning(f"Plugin '{i['name']}' already exists locally. Skipping...")
+                to_pop.append(i["name"])
                 continue
             if i["name"] in self.plugins:
-                core_log.debug(f"Plugin '{i['name']}' already exists. Overwriting...")
+
+                if self.plugins[i["name"]]["id"] == i["id"]:
+                    core_log.debug(f"Plugin '{i['name']}' updated")
+                else:
+                    to_pop.append(i["name"])
+                    core_log.error(f"Plugin '{i['name']}' already exists with different ID. Skipping...")
                 del self.plugins[i["name"]]
             new_names.append(i["name"])
             i["remote_id"] = identity
@@ -122,7 +137,7 @@ class PluginMemory:
         #             old_module_dict = old_module.__dict__
         #             old_module_dict.clear()
         #             old_module_dict.update(remote_module.__dict__)
-
+        plugin_dict = {k: v for k, v in plugin_dict.items() if k not in to_pop}
         self.plugins = {**self.plugins, **plugin_dict}
 
     def add_remote_functions(self, func_list, plugin_id, origin_is_client=False):

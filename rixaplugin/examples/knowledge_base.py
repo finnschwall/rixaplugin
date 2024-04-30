@@ -29,18 +29,16 @@ knowledge_logger = logging.getLogger("knowledge_db")
 #  also good but just english (1.7 gb) https://huggingface.co/Alibaba-NLP/gte-large-en-v1.5/tree/main
 import torch
 from transformers import AutoModel, AutoTokenizer
+
 tokenizer = AutoTokenizer.from_pretrained('Snowflake/snowflake-arctic-embed-m-long')
-model = AutoModel.from_pretrained('Snowflake/snowflake-arctic-embed-m-long', trust_remote_code=True, add_pooling_layer=False, safe_serialization=True)
-device ="cpu"
+model = AutoModel.from_pretrained('Snowflake/snowflake-arctic-embed-m-long', trust_remote_code=True,
+                                  add_pooling_layer=False, safe_serialization=True)
+device = "cpu"
 if torch.cuda.is_available():
     device = "cuda"
 model.to(device)
 # tokenizer.to(device)
 model.eval()
-
-
-
-
 
 embedding_df_loc = rixaplugin.variables.PluginVariable("embedding_df_loc", str, default="embeddings.pkl")
 
@@ -49,6 +47,7 @@ if os.path.exists(embedding_df_loc.get()):
 else:
     embeddings_db = pd.DataFrame(columns=["document_title", "source", "content", "subtitle", "embedding"])
     embeddings_db.to_pickle(embedding_df_loc.get())
+
 
 def reset_db():
     global embeddings_db
@@ -123,7 +122,7 @@ def get_entities_from_wiki_xml(path):
         section_text = sections[0::2]
         sections = {i: j for i, j in zip(headers, section_text)}
         entries_to_remove = (
-        'See also', 'Footnotes', "References", "Sources", "History", "External links", "Bibliography")
+            'See also', 'Footnotes', "References", "Sources", "History", "External links", "Bibliography")
         for k in entries_to_remove:
             sections.pop(k, None)
 
@@ -146,7 +145,7 @@ def get_entities_from_wiki_xml(path):
             text = re.sub(r"<ref>(.*?)</ref>", '', text)
             text = re.sub(r"\'\'\'(.*?)\'\'\'", r"'\1'", text)
             text = re.sub(r"\'\'(.*?)\'\'", r"'\1'", text)
-            entity = {"document_title": title, "content": i+":\n"+text,
+            entity = {"document_title": title, "content": i + ":\n" + text,
                       "source": f"https://en.wikipedia.org/?curid={id}#" + "_".join(i.split(" ")),
                       "subtitle": i}
             entities.append(entity)
@@ -158,13 +157,16 @@ def entity_list_to_df(entities):
     df = pd.DataFrame(entities)
     return df
 
+
 from tqdm import tqdm
+
+
 def calculate_embeddings(df):
     content_col = df["content"].tolist()
     total_rows = len(content_col)
     df["embedding"] = None
     # 8245MiB usage for model size 547 MiB with chunk size 100
-    chunk_size=100
+    chunk_size = 100
     for start_idx in tqdm(range(0, total_rows, chunk_size)):
         end_idx = min(start_idx + chunk_size, total_rows)
         chunk = content_col[start_idx:end_idx]
@@ -213,6 +215,14 @@ def add_urls(urls, tags):
     df['tags'] = [tags for _ in range(len(df))]
     embeddings_db = pd.concat([embeddings_db, df], ignore_index=True)
     embeddings_db.to_pickle(embedding_df_loc.get())
+
+
+def query_db_as_string(query, top_k=3, query_tags=None, embd_db=None):
+    df, scores = query_db(query, top_k, query_tags, embd_db)
+    result = ""
+    for i, row in df.iterrows():
+        result += f"DOCUMENT TITLE: {row['document_title']}\nDOCUMENT SOURCE: {row['source']}\nSUBTITLE: {row['content']}\n\n"
+    return result
 
 
 def query_db(query, top_k=5, query_tags=None, embd_db=None):
