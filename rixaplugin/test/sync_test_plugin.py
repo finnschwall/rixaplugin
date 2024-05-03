@@ -58,10 +58,15 @@ def test_signature_and_doc_compile(var1, another_var: str, var3=5, var4: int = 6
 def test_return_single_value():
     return 5
 
+@plugfunc()
+def test_delay(delay: int):
+    print(f"Sleeping for {delay} seconds")
+    time.sleep(delay)
+    print(f"Finished sleeping for {delay} seconds")
+    return delay
 
 @plugfunc()
 def test_return_multiple_values():
-    time.sleep(1)
     return 5, 6
 
 

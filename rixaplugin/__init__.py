@@ -10,32 +10,37 @@ from .data_structures import variables
 
 get_state_info = _memory.__str__
 get_plugin_info = _memory.pretty_print_plugin
+get_functions_info = _memory.get_functions
 
 worker_context = threading.local()
 
-async def _execute_and_await(function_name, plugin_name, args, kwargs,api_obj, timeout):
+
+async def _execute_and_await(function_name, plugin_name, args, kwargs, api_obj, timeout):
     """
     Helper function for synchronous execution of functions in the plugin system.
     Use async_execute for proper async execution.
     """
-    future = async_execute(function_name, plugin_name,api_obj=api_obj, args=args, kwargs=kwargs, timeout=timeout, return_future=True)
+    future = async_execute(function_name, plugin_name, api_obj=api_obj, args=args, kwargs=kwargs, timeout=timeout,
+                           return_future=True)
     # This is somewhat puzzling. The result is only returned when awaited twice.
     # The problem is: I have no clue why
     ret_val = await future
     ret_val = await ret_val
     return ret_val
+
 
 async def _execute_code_and_await(code, api_obj, timeout):
     """
     Helper function for synchronous execution of code in the plugin system.
     Use async_execute for proper async execution.
     """
-    future = async_execute_code(code, api_obj=api_obj, timeout = timeout, return_future=True)
+    future = async_execute_code(code, api_obj=api_obj, timeout=timeout, return_future=True)
     # This is somewhat puzzling. The result is only returned when awaited twice.
     # The problem is: I have no clue why
     ret_val = await future
     ret_val = await ret_val
     return ret_val
+
 
 def execute(function_name, plugin_name=None, args=None, kwargs=None, timeout=30):
     """
@@ -50,12 +55,12 @@ def execute(function_name, plugin_name=None, args=None, kwargs=None, timeout=30)
     """
     api_obj = _api.get_api()
     future = asyncio.run_coroutine_threadsafe(
-        _execute_and_await(function_name, plugin_name, args=args, kwargs=kwargs,api_obj=api_obj,
+        _execute_and_await(function_name, plugin_name, args=args, kwargs=kwargs, api_obj=api_obj,
                            timeout=timeout), _memory.event_loop)
     return future.result()
 
 
-def execute_code(code,timeout=30):
+def execute_code(code, timeout=30):
     api_obj = _api.get_api()
     future = asyncio.run_coroutine_threadsafe(
         _execute_code_and_await(code, api_obj=api_obj, timeout=timeout), _memory.event_loop)

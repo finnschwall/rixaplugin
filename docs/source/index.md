@@ -16,4 +16,5 @@ modules/rixaplugin.data_structures.rst
 modules/rixaplugin.pylot.rst
 modules/rixaplugin.test.rst
 modules/rixaplugin.internal.rst
+issues.md
 ```

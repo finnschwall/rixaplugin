@@ -93,26 +93,30 @@ class PluginMemory:
             self.plugins[signature_dict["plugin_name"]] = plugin
 
     def add_plugin(self, plugin_dict, identity, remote_origin, origin_is_client=False):
+        if not self.allow_remote_functions:
+            print("skipping...")
+            return
         local_plugin_names = [i["name"] for i in self.plugins.values() if i["type"] & FunctionPointerType.LOCAL]
 
         # add functions to function list
         new_names = []
         to_pop = []
+
         for i in plugin_dict.values():
             if i["name"] in local_plugin_names:
                 core_log.warning(f"Plugin '{i['name']}' already exists locally. Skipping...")
                 to_pop.append(i["name"])
                 continue
             if i["name"] in self.plugins:
-
                 if self.plugins[i["name"]]["id"] == i["id"]:
                     core_log.debug(f"Plugin '{i['name']}' updated")
                 else:
                     to_pop.append(i["name"])
                     core_log.error(f"Plugin '{i['name']}' already exists with different ID. Skipping...")
+                    continue
                 del self.plugins[i["name"]]
             new_names.append(i["name"])
-            i["remote_id"] = identity
+            i["id"] = identity
             i["remote_origin"] = remote_origin
             if origin_is_client:
                 i["type"] |= FunctionPointerType.CLIENT
@@ -120,11 +124,11 @@ class PluginMemory:
                 i["type"] |= FunctionPointerType.SERVER
             for j in i["functions"]:
                 j["type"] = i["type"]
-                j["remote_id"] = identity
+                j["id"] = identity
                 j["remote_origin"] = remote_origin
                 self.function_list.append(j)
             # remote_plugin_to_module(i)
-        core_log.debug("Received new plugins: " + ", ".join(new_names))
+
         # if settings.MAKE_REMOTES_IMPORTABLE:
         #     for name, plugin in plugin_dict.items():
         #         if name in self.remote_dummy_modules:
@@ -138,6 +142,7 @@ class PluginMemory:
         #             old_module_dict.clear()
         #             old_module_dict.update(remote_module.__dict__)
         plugin_dict = {k: v for k, v in plugin_dict.items() if k not in to_pop}
+        core_log.debug("Received new plugins: " + ", ".join(new_names))
         self.plugins = {**self.plugins, **plugin_dict}
 
     def add_remote_functions(self, func_list, plugin_id, origin_is_client=False):
@@ -204,7 +209,7 @@ class PluginMemory:
 
     def _pretty_print_plugin(self, entry):
         readable_str = ""
-        readable_str += f"Name: {entry['name']}\nID: {'LOCAL' if entry['type'] & FunctionPointerType.LOCAL else entry['remote_id']}," \
+        readable_str += f"Name: {entry['name']}\nID: {'LOCAL' if entry['type'] & FunctionPointerType.LOCAL else entry['id']}," \
                         f" TYPE:{entry['type']}, ALIVE:{entry['is_alive']}, N_TASKS: {entry['active_tasks']}\n"
         for i in entry["functions"]:
             readable_str += f"\t{generate_python_doc(i, include_docstr=False)}\n"
@@ -247,7 +252,7 @@ class PluginMemory:
         # clean up i.e. remove pointers and other unnecessary data from function entries
         for key, val in sendable_dict.items():
             val["functions"] = [j.copy() for j in val["functions"]]
-            val.pop("id", None)
+            # val.pop("id", None)
             val.pop("remote_origin", None)
             for j in val["functions"]:
                 j.pop("pointer", None)
@@ -262,7 +267,8 @@ class PluginMemory:
 
         return sendable_dict
 
-    def get_functions_for_llm(self, excluded_functions = None, excluded_plugins = None, short=False):
+    def get_functions(self, excluded_functions = None, excluded_plugins = None, short=False,
+                      inclusive_tags = None, exclusive_tags = None):
         func_str = ""
         #        for i in entry["functions"]:
         #    readable_str += f"\t{generate_python_doc(i, include_docstr=False)}\n"
@@ -272,6 +278,12 @@ class PluginMemory:
             for j in val["functions"]:
                 if excluded_functions and j["name"] in excluded_functions:
                     continue
+                if inclusive_tags:
+                    if not j.get("tags") or not any([i in j["tags"] for i in inclusive_tags]):
+                        continue
+                if exclusive_tags:
+                    if j.get("tags") and any([i in j["tags"] for i in exclusive_tags]):
+                        continue
                 func_str += generate_python_doc(j, include_docstr=True, short=short) + "\n\n"
         return func_str
 

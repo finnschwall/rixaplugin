@@ -39,67 +39,20 @@ async def _start_process_server():
         else:
             await api_callable(*message[2], **message[3])
 
-import sys
 
-
-def fake_function(func_name, plugin_name, *args, **kwargs):
-    print(f"Fake function {func_name} called with {args} and {kwargs}")
-    # await execute(func_name, plugin_name, args, kwargs)
-
-
-
-# class EmptyModule(types.ModuleType):
-#     """
-#     A custom module that returns an empty module for any attribute access.
-#     """
-#     # def __init__(self, name):
-#     #     super().__init__(name)
-#     #     self._is_empty=True
-#     def __getattr__(self, name):
-#         print("WTF", name)
-#         if name.startswith("__") or name.startswith("_") or not self._is_empty:
-#             return super().__getattr__(name)
-#         return types.ModuleType(name)
-
-# sys.modules["rixaplugin.remote"] = EmptyModule("rixaplugin.remote")
-
-# def on_remote_plugin_import(name):
-#     module = types.ModuleType(name)#EmptyModule(name)
-#     module.__file__ = f"{name}.py"
-#     module.__doc__ = "Auto-generated module for RPC remote plugin"
-#     sys.modules[name] = module
-#     return module
-#
-# def install_import_hook():
-#     original_import = __builtins__['__import__']
-#     def custom_import(name, globals=None, locals=None, fromlist=(), level=0):
-#
-#         if name.startswith('remote_'):
-#             print(name)
-#             module = on_remote_plugin_import(name)
-#             _memory.remote_dummy_modules[name] = module
-#             return module
-#             print("A")
-#             if name == "rixaplugin.remote":
-#                 return on_remote_plugin_import(name)
-#             module = types.ModuleType(name)#on_remote_plugin_import(name)
-#
-#             return module
-#         return original_import(name, globals, locals, fromlist, level)
-#     __builtins__['__import__'] = custom_import
-#
-# install_import_hook()
-
-
-def init_plugin_system(mode=PMF_DebugLocal, num_workers=2, debug=False, max_jupyter_messages=10):
+def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_jupyter_messages=10):
     if _memory.plugin_system_active:
         raise Exception("Plugin system already initialized. You'll need to restart the process to reinitialize.")
-
     if debug:
         asyncio.get_event_loop().set_debug(True)
         core_log.setLevel(logging.DEBUG)
-    test_future= None
+    if not num_workers:
+        num_workers = settings.DEFAULT_MAX_WORKERS
+    test_future = None
     _memory.event_loop = asyncio.get_event_loop()
+    if mode & PluginModeFlags.THREAD and mode & PluginModeFlags.PROCESS:
+        raise Exception("Cannot run in both THREAD and PROCESS mode.")
+
     if mode & PluginModeFlags.THREAD:
         _memory.executor = CountingThreadPoolExecutor(max_workers=num_workers, initializer=api._init_thread_worker)
         test_future = _memory.executor.submit(api._test_job)
@@ -202,10 +155,9 @@ async def execute_code(code, api_obj=None, return_future=True, timeout=30):
 
     future = asyncio.create_task(_execute_code(ast_obj, api_obj))
 
-
     if return_future:
         return future
-        #return await _wait_for_return(future, timeout)
+        # return await _wait_for_return(future, timeout)
     else:
         await supervise_future(future)
 
@@ -229,7 +181,8 @@ async def execute_sync(entry, args, kwargs, api_obj, return_future):
     if _memory.mode & PluginModeFlags.THREAD:
         fun = functools.partial(api._call_function_sync, entry["pointer"], api_obj, args, kwargs)
     else:
-        fun = functools.partial(api._call_function_sync_process, entry["name"], entry["plugin_name"], api_obj.request_id,
+        fun = functools.partial(api._call_function_sync_process, entry["name"], entry["plugin_name"],
+                                api_obj.request_id,
                                 args, kwargs)
     future = _memory.event_loop.run_in_executor(_memory.executor,
                                                 fun, api_obj)  # _memory.executor.submit(pointer, *args, **kwargs)
@@ -246,11 +199,13 @@ async def execute_async(entry, args, kwargs, api_obj, return_future):
     else:
         await supervise_future(fut)
 
+
 async def _wait_for_return(future, timeout):
     try:
         return asyncio.wait_for(future, timeout)
     except asyncio.TimeoutError:
         raise RemoteTimeoutException(f"Remote function call timed out after {timeout} seconds.")
+
 
 async def _execute(plugin_entry, args=(), kwargs={}, api_obj=None, return_future=False, return_time_estimate=False,
                    timeout=30):
@@ -275,15 +230,15 @@ async def _execute(plugin_entry, args=(), kwargs={}, api_obj=None, return_future
             raise Exception(f"{plugin_entry['plugin_name']} is currently unreachable.")
         _memory.plugins[plugin_entry["plugin_name"]]["active_tasks"] += 1
 
-        fut, est = await plugin_entry["remote_origin"].call_remote_function(plugin_entry, api_obj, args, kwargs, not return_future,
-                                                                        return_time_estimate=True)
+        fut, est = await plugin_entry["remote_origin"].call_remote_function(plugin_entry, api_obj, args, kwargs,
+                                                                            not return_future,
+                                                                            return_time_estimate=True)
         if return_time_estimate:
             return fut, est
             # return await _wait_for_return(fut, timeout), est
         else:
             return fut
             # return await _wait_for_return(fut, timeout)
-
 
     raise NotImplementedError()
 
@@ -315,7 +270,7 @@ async def execute(function_name, plugin_name=None, args=None, kwargs=None, api_o
     if kwargs is None:
         kwargs = {}
     if args is None:
-        args=()
+        args = ()
     if not _memory.plugin_system_active:
         raise Exception("Plugin system not initialized")
     if not api_obj:
@@ -413,3 +368,51 @@ class CountingProcessPoolExecutor(concurrent.futures.ProcessPoolExecutor):
     def get_free_worker_count(self):
         return self._max_workers - self._active_tasks
 
+
+
+def fake_function(func_name, plugin_name, *args, **kwargs):
+    print(f"Fake function {func_name} called with {args} and {kwargs}")
+    # await execute(func_name, plugin_name, args, kwargs)
+
+
+# class EmptyModule(types.ModuleType):
+#     """
+#     A custom module that returns an empty module for any attribute access.
+#     """
+#     # def __init__(self, name):
+#     #     super().__init__(name)
+#     #     self._is_empty=True
+#     def __getattr__(self, name):
+#         print("WTF", name)
+#         if name.startswith("__") or name.startswith("_") or not self._is_empty:
+#             return super().__getattr__(name)
+#         return types.ModuleType(name)
+
+# sys.modules["rixaplugin.remote"] = EmptyModule("rixaplugin.remote")
+
+# def on_remote_plugin_import(name):
+#     module = types.ModuleType(name)#EmptyModule(name)
+#     module.__file__ = f"{name}.py"
+#     module.__doc__ = "Auto-generated module for RPC remote plugin"
+#     sys.modules[name] = module
+#     return module
+#
+# def install_import_hook():
+#     original_import = __builtins__['__import__']
+#     def custom_import(name, globals=None, locals=None, fromlist=(), level=0):
+#
+#         if name.startswith('remote_'):
+#             print(name)
+#             module = on_remote_plugin_import(name)
+#             _memory.remote_dummy_modules[name] = module
+#             return module
+#             print("A")
+#             if name == "rixaplugin.remote":
+#                 return on_remote_plugin_import(name)
+#             module = types.ModuleType(name)#on_remote_plugin_import(name)
+#
+#             return module
+#         return original_import(name, globals, locals, fromlist, level)
+#     __builtins__['__import__'] = custom_import
+#
+# install_import_hook()

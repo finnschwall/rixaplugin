@@ -8,7 +8,7 @@ from rixaplugin import settings
 from rixaplugin.settings import DEBUG
 from rixaplugin.pylot.python_parsing import  generate_python_doc
 task_superviser_log = logging.getLogger("task_superviser")
-
+discover_log = logging.getLogger("plugin_discovery")
 # export PYTHONASYNCIODEBUG=1
 
 
@@ -107,7 +107,7 @@ def identifier_from_signature(fname, args=[], kwargs={}):
 
     PLUGIN_REGISTRY = "/tmp/plugin_registry.json"
 
-def make_discoverable(name: str, endpoint: str, port: int, description: str) -> None:
+def make_discoverable(id: str, endpoint: str, port: int, plugins: list) -> None:
     """
     Make oneself available by writing to the registry file.
     If the plugin is already registered, it will be updated with new values.
@@ -124,19 +124,19 @@ def make_discoverable(name: str, endpoint: str, port: int, description: str) -> 
 
     # If we're already registered, update our entry; otherwise add a new one.
     for existing_plugin in list(registry.values()):
-        if existing_plugin['name'] == name:
+        if existing_plugin['ID'] == id:
             existing_plugin.update({
                 "endpoint": endpoint,
                 "port": port,
-                "description": description
+                "plugins": plugins
             })
             break
     else:  # not found, so we're adding anew...
-        registry[name] = {
-            "name": name,
+        registry[id] = {
+            "ID": id,
             "endpoint": endpoint,
             "port": port,
-            "description": description
+            "plugins": plugins
         }
 
     with open(settings.PLUGIN_REGISTRY, 'w') as f:
@@ -150,17 +150,21 @@ def discover_plugins() -> list[dict]:
     if not os.path.exists(settings.PLUGIN_REGISTRY):
         return []
 
-    with open(settings.PLUGIN_REGISTRY, 'r') as f:
-        registry = json.load(f)
+    try:
+        with open(settings.PLUGIN_REGISTRY, 'r') as f:
+            registry = json.load(f)
 
-    plugins = [plugin for _, plugin in registry.items()]
-    # Filter out any invalid entries
-    valid_plugins = [{k: v for k, v in p.items() if k != '__module__'}
-                     for p in plugins]
+        plugins = [plugin for _, plugin in registry.items()]
+        # Filter out any invalid entries
+        valid_plugins = [{k: v for k, v in p.items() if k != '__module__'}
+                         for p in plugins]
 
-    return valid_plugins
+        return valid_plugins
+    except:
+        discover_log.error("Error while reading plugin registry")
+        return []
 
-def remove_plugin(name: str) -> None:
+def remove_plugin(id: str) -> None:
     """
     Remove one's own entry from the registry file.
     :param name: The unique name of the plugin to be removed
@@ -168,12 +172,13 @@ def remove_plugin(name: str) -> None:
 
     # Load current state...
     if not os.path.exists(settings.PLUGIN_REGISTRY):
-        print(f"Plugin {name} is already gone!")
+        # print(f"Plugin {name} is already gone!")
+        return
 
     with open(settings.PLUGIN_REGISTRY, 'r') as f:
         registry = json.load(f)
 
-    if name in registry:
-        del registry[name]
+    if id in registry:
+        del registry[id]
         with open(settings.PLUGIN_REGISTRY, 'w') as f:
             json.dump(registry, f)

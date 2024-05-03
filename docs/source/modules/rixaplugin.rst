@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    rixaplugin.data_structures
+   rixaplugin.default_plugins
    rixaplugin.internal
    rixaplugin.pylot
    rixaplugin.remote

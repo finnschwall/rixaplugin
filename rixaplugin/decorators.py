@@ -5,6 +5,8 @@ import asyncio
 import functools
 from rixaplugin.data_structures.enums import FunctionPointerType
 import inspect
+
+
 # def universal_decorator(func):
 #     @functools.wraps(func)
 #     async def wrapper_async(*args, **kwargs):
@@ -22,7 +24,7 @@ import inspect
 #         return wrapper_sync
 
 
-def plugfunc(local_only=False):
+def plugfunc(local_only: bool = False, tags: list = None, ):
     def plugin_method(original_function):
         if _memory.plugin_system_active:
             raise Exception("Cant add plugins when plugin system has been started!")
@@ -36,6 +38,8 @@ def plugfunc(local_only=False):
             dic_entry["type"] |= FunctionPointerType.SYNC
         if local_only:
             dic_entry["type"] |= FunctionPointerType.LOCAL_ONLY
+        if tags is not None:
+            dic_entry["tags"] = tags
         # dic_entry["coroutine"] = asyncio.iscoroutinefunction(original_function)
         fname = original_function.__module__.split(".")
         if len(fname) > 1:
@@ -45,7 +49,7 @@ def plugfunc(local_only=False):
                 dic_entry["plugin_name"] = fname[-1]
         else:
             dic_entry["plugin_name"] = fname[0]
-        # print(inspect.getsourcefile(original_function))
+        # dic_entry["code"] = inspect.getsourcefile(original_function)
         _memory.add_function(dic_entry)
 
         if is_coroutine:
@@ -80,4 +84,3 @@ def global_init():
         return original_function
 
     return plugin_method
-

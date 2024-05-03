@@ -9,7 +9,7 @@ import numpy as np
 # def test():
 #     return "Hello World!"
 
-
+var1 = 4
 @plugfunc()
 def draw_plot(function, x_range_start=-10, x_range_end=10):
     """
@@ -21,14 +21,30 @@ def draw_plot(function, x_range_start=-10, x_range_end=10):
     :param x_range_end:
     :return: Displays the plot
     """
+    # from rixaplugin.data_structures import rixa_exceptions
+    # raise rixa_exceptions.RemoteOfflineException("Plugin 'math' is currently unreachable")
     x = sympy.symbols('x')
     y = sympy.sympify(function)
-    x_vals = list(np.linspace(x_range_start, x_range_end))
+    x_vals = list(np.linspace(x_range_start, x_range_end, 100))
     # use lambdify to generate y values
+
     func = lambdify(x, y)
     y_vals = [func(val) for val in x_vals]
     fig = px.line(x=x_vals, y=y_vals)
     api.display(html=fig.to_html(include_plotlyjs=False, full_html=False))
+
+
+@plugfunc()
+def latexify(expression):
+    """
+    Convert an expression to latex
+
+    Latex will be automatically rendered in the output. Preferable over strings
+    Example: latexify("x**2+3") to convert x^2+3 to latex.
+    :param expression: Expression as a string
+    :return: Latex string
+    """
+    return latex(sympy.sympify(expression))
 
 
 @plugfunc()
@@ -58,7 +74,7 @@ def differentiate(function):
     x = sympy.symbols('x')
     y = sympy.sympify(function)
     dy_dx = sympy.diff(y, x)
-    return latex(dy_dx)
+    return str(dy_dx)
 
 
 @plugfunc()
@@ -73,7 +89,7 @@ def integrate(function):
     x = sympy.symbols('x')
     y = sympy.sympify(function)
     integral = sympy.integrate(y, x)
-    return latex(integral)
+    return str(integral)
 
 
 @plugfunc()
@@ -88,7 +104,7 @@ def simplify_expression(expression):
     x = sympy.symbols('x')
     expr = sympy.sympify(expression)
     simplified = sympy.simplify(expr)
-    return latex(simplified)
+    return str(simplified)
 
 
 @plugfunc()
@@ -100,7 +116,7 @@ def evaluate(expression):
     :param expression:
     :return: Expression or number
     """
-    return latex(sympy.sympify(expression))
+    return str(sympy.sympify(expression))
 
 
 # @plugfunc()

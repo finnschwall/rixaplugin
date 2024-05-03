@@ -136,10 +136,10 @@ class NetworkAdapter:
             self.pending_requests[request_id] = future
 
         remote_func_type = plugin_entry["type"]
-        await self.send(plugin_entry["remote_id"], message)
+        await self.send(plugin_entry["id"], message)
         # time estimate is always awaited
         # need to check whether this makes sense or if call without acknowledgement is possible
-        answer = await utils.event_wait(event, 2)  # event.wait()
+        answer = await utils.event_wait(event, 3)  # event.wait()
         if not answer:
             _memory.plugins[plugin_entry["plugin_name"]]["is_alive"] = False
             del self.api_objs[request_id]
@@ -324,7 +324,7 @@ class PluginServer(NetworkAdapter):
         self.con.bind(address)
         network_log.info(f"Server started at {address}")
         self.first_connection = asyncio.Event()
-        utils.make_discoverable(_memory.ID, "localhost", port, str(list(_memory.plugins.keys())))
+        utils.make_discoverable(_memory.ID, "localhost", port, list(_memory.plugins.keys()))
 
 
 async def create_and_start_plugin_client(server_address, port=2809, raise_on_connection_failure=True, return_future=False):

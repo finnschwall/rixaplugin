@@ -16,7 +16,7 @@
 <link href="../search.html" rel="search" title="Search"/>
 <link href="../genindex.html" rel="index" title="Index"/>
 <link href="rixaplugin.data_structures.html" rel="next" title="rixaplugin.data_structures package"/>
-<link href="modules.html" rel="prev" title="Modules"/>
+<link href="modules.html" rel="prev" title="rixaplugin"/>
 <script>
     <!-- Prevent Flash of wrong theme -->
       const userPreference = localStorage.getItem('darkMode');
@@ -74,7 +74,7 @@
 <a href="../index.html">Home</a>
 </nav><nav class="table w-full min-w-full my-6 lg:my-8">
 <ul class="current">
-<li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="modules.html">Modules<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul class="current" x-show="expanded">
+<li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="modules.html">rixaplugin<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul class="current" x-show="expanded">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">rixaplugin package</a></li>
 </ul>
 </li>
@@ -82,6 +82,7 @@
 <li class="toctree-l1"><a class="reference internal" href="rixaplugin.pylot.html">rixaplugin.pylot package</a></li>
 <li class="toctree-l1"><a class="reference internal" href="rixaplugin.test.html">rixaplugin.test package</a></li>
 <li class="toctree-l1"><a class="reference internal" href="rixaplugin.internal.html">rixaplugin.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../issues.html">Plugin programming quickstart</a></li>
 </ul>
 </nav>
 </div>
@@ -101,7 +102,7 @@
 <path d="M240 856h120V616h240v240h120V496L480 316 240 496v360Zm-80 80V456l320-240 320 240v480H520V696h-80v240H160Zm320-350Z"></path>
 </svg>
 </a>
-<div class="mr-1">/</div><a class="hover:text-foreground overflow-hidden text-ellipsis whitespace-nowrap" href="modules.html">Modules</a>
+<div class="mr-1">/</div><a class="hover:text-foreground overflow-hidden text-ellipsis whitespace-nowrap" href="modules.html">rixaplugin</a>
 <div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">rixaplugin package</span>
 </nav>
 <div id="content" role="main">
@@ -175,7 +176,9 @@
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.data_structures.html#rixaplugin.data_structures.rixa_exceptions.PluginNotFoundException"><code class="docutils literal notranslate"><span class="pre">PluginNotFoundException</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.data_structures.html#rixaplugin.data_structures.rixa_exceptions.QueueOverflowException"><code class="docutils literal notranslate"><span class="pre">QueueOverflowException</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.data_structures.html#rixaplugin.data_structures.rixa_exceptions.RemoteException"><code class="docutils literal notranslate"><span class="pre">RemoteException</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.data_structures.html#rixaplugin.data_structures.rixa_exceptions.RemoteOfflineException"><code class="docutils literal notranslate"><span class="pre">RemoteOfflineException</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.data_structures.html#rixaplugin.data_structures.rixa_exceptions.RemoteTimeoutException"><code class="docutils literal notranslate"><span class="pre">RemoteTimeoutException</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.data_structures.html#rixaplugin.data_structures.rixa_exceptions.RemoteUnavailableException"><code class="docutils literal notranslate"><span class="pre">RemoteUnavailableException</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.data_structures.html#rixaplugin.data_structures.rixa_exceptions.SignatureMismatchException"><code class="docutils literal notranslate"><span class="pre">SignatureMismatchException</span></code></a></li>
 </ul>
 </li>
@@ -190,6 +193,40 @@
 <li class="toctree-l2"><a class="reference internal" href="rixaplugin.data_structures.html#module-rixaplugin.data_structures">Module contents</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="rixaplugin.default_plugins.html">rixaplugin.default_plugins package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="rixaplugin.default_plugins.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rixaplugin.default_plugins.html#module-rixaplugin.default_plugins.knowledge_db">rixaplugin.default_plugins.knowledge_db module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db.query_db"><code class="docutils literal notranslate"><span class="pre">query_db()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db.query_db_as_string"><code class="docutils literal notranslate"><span class="pre">query_db_as_string()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db.worker_init"><code class="docutils literal notranslate"><span class="pre">worker_init()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="rixaplugin.default_plugins.html#module-rixaplugin.default_plugins.knowledge_db_creation">rixaplugin.default_plugins.knowledge_db_creation module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.add_urls"><code class="docutils literal notranslate"><span class="pre">add_urls()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.add_wiki"><code class="docutils literal notranslate"><span class="pre">add_wiki()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.calculate_embeddings"><code class="docutils literal notranslate"><span class="pre">calculate_embeddings()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.entity_list_to_df"><code class="docutils literal notranslate"><span class="pre">entity_list_to_df()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.get_entities_from_wiki_xml"><code class="docutils literal notranslate"><span class="pre">get_entities_from_wiki_xml()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.html_to_entities"><code class="docutils literal notranslate"><span class="pre">html_to_entities()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.query_db"><code class="docutils literal notranslate"><span class="pre">query_db()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.query_db_as_string"><code class="docutils literal notranslate"><span class="pre">query_db_as_string()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.reset_db"><code class="docutils literal notranslate"><span class="pre">reset_db()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.urls_to_entities"><code class="docutils literal notranslate"><span class="pre">urls_to_entities()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="rixaplugin.default_plugins.html#module-rixaplugin.default_plugins.math">rixaplugin.default_plugins.math module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.math.differentiate"><code class="docutils literal notranslate"><span class="pre">differentiate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.math.draw_plot"><code class="docutils literal notranslate"><span class="pre">draw_plot()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.math.evaluate"><code class="docutils literal notranslate"><span class="pre">evaluate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.math.integrate"><code class="docutils literal notranslate"><span class="pre">integrate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.math.latexify"><code class="docutils literal notranslate"><span class="pre">latexify()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.math.simplify_expression"><code class="docutils literal notranslate"><span class="pre">simplify_expression()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.default_plugins.html#rixaplugin.default_plugins.math.solve_equation"><code class="docutils literal notranslate"><span class="pre">solve_equation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="rixaplugin.default_plugins.html#module-rixaplugin.default_plugins">Module contents</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="rixaplugin.internal.html">rixaplugin.internal package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="rixaplugin.internal.html#submodules">Submodules</a></li>
 <li class="toctree-l2"><a class="reference internal" href="rixaplugin.internal.html#module-rixaplugin.internal.api">rixaplugin.internal.api module</a><ul>
@@ -197,6 +234,8 @@
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.call"><code class="docutils literal notranslate"><span class="pre">BaseAPI.call()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.call_client_js"><code class="docutils literal notranslate"><span class="pre">BaseAPI.call_client_js()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.display"><code class="docutils literal notranslate"><span class="pre">BaseAPI.display()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.display_in_chat"><code class="docutils literal notranslate"><span class="pre">BaseAPI.display_in_chat()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.execute_code_on_remote"><code class="docutils literal notranslate"><span class="pre">BaseAPI.execute_code_on_remote()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.retrieve_usr_obj"><code class="docutils literal notranslate"><span class="pre">BaseAPI.retrieve_usr_obj()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.save_usr_obj"><code class="docutils literal notranslate"><span class="pre">BaseAPI.save_usr_obj()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.show_message"><code class="docutils literal notranslate"><span class="pre">BaseAPI.show_message()</span></code></a></li>
@@ -211,6 +250,8 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.RemoteAPI"><code class="docutils literal notranslate"><span class="pre">RemoteAPI</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.construct_api_module"><code class="docutils literal notranslate"><span class="pre">construct_api_module()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.get_api"><code class="docutils literal notranslate"><span class="pre">get_api()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.relay_module"><code class="docutils literal notranslate"><span class="pre">relay_module()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="rixaplugin.internal.html#module-rixaplugin.internal.cli">rixaplugin.internal.cli module</a><ul>
@@ -243,6 +284,7 @@
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.executor.execute_code"><code class="docutils literal notranslate"><span class="pre">execute_code()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.executor.execute_networked"><code class="docutils literal notranslate"><span class="pre">execute_networked()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.executor.execute_sync"><code class="docutils literal notranslate"><span class="pre">execute_sync()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.executor.fake_function"><code class="docutils literal notranslate"><span class="pre">fake_function()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.executor.init_plugin_system"><code class="docutils literal notranslate"><span class="pre">init_plugin_system()</span></code></a></li>
 </ul>
 </li>
@@ -256,6 +298,7 @@
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.delete_connection"><code class="docutils literal notranslate"><span class="pre">PluginMemory.delete_connection()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.find_function_by_name"><code class="docutils literal notranslate"><span class="pre">PluginMemory.find_function_by_name()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.force_shutdown"><code class="docutils literal notranslate"><span class="pre">PluginMemory.force_shutdown()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.get_functions"><code class="docutils literal notranslate"><span class="pre">PluginMemory.get_functions()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.get_sendable_plugins"><code class="docutils literal notranslate"><span class="pre">PluginMemory.get_sendable_plugins()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.pretty_print_plugin"><code class="docutils literal notranslate"><span class="pre">PluginMemory.pretty_print_plugin()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.pretty_print_plugins"><code class="docutils literal notranslate"><span class="pre">PluginMemory.pretty_print_plugins()</span></code></a></li>
@@ -397,6 +440,7 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="rixaplugin.test.html#module-rixaplugin.test.sync_test_plugin">rixaplugin.test.sync_test_plugin module</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.test.html#rixaplugin.test.sync_test_plugin.test"><code class="docutils literal notranslate"><span class="pre">test()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="rixaplugin.test.html#rixaplugin.test.sync_test_plugin.test_delay"><code class="docutils literal notranslate"><span class="pre">test_delay()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.test.html#rixaplugin.test.sync_test_plugin.test_exception"><code class="docutils literal notranslate"><span class="pre">test_exception()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.test.html#rixaplugin.test.sync_test_plugin.test_html_display"><code class="docutils literal notranslate"><span class="pre">test_html_display()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.test.html#rixaplugin.test.sync_test_plugin.test_log"><code class="docutils literal notranslate"><span class="pre">test_log()</span></code></a></li>
@@ -430,7 +474,7 @@
 <dd></dd></dl>
 <dl class="py function">
 <dt class="sig sig-object py" id="rixaplugin.decorators.plugfunc">
-<span class="sig-prename descclassname"><span class="pre">rixaplugin.decorators.</span></span><span class="sig-name descname"><span class="pre">plugfunc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">local_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.decorators.plugfunc" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.decorators.plugfunc'">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">rixaplugin.decorators.</span></span><span class="sig-name descname"><span class="pre">plugfunc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">local_only</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.decorators.plugfunc" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.decorators.plugfunc'">¶</a></dt>
 <dd></dd></dl>
 <dl class="py function">
 <dt class="sig sig-object py" id="rixaplugin.decorators.worker_init">
@@ -468,8 +512,13 @@ If activated on most/all servers, a decentralized system is possible (at cost of
 with control sequences. Use this to deactivate colors in the console.</p>
 </dd></dl>
 <dl class="py data">
+<dt class="sig sig-object py" id="rixaplugin.settings.DEFAULT_MAX_WORKERS">
+<span class="sig-prename descclassname"><span class="pre">rixaplugin.settings.</span></span><span class="sig-name descname"><span class="pre">DEFAULT_MAX_WORKERS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></em><a class="headerlink" href="#rixaplugin.settings.DEFAULT_MAX_WORKERS" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.settings.DEFAULT_MAX_WORKERS'">¶</a></dt>
+<dd><p>Default number of worker threads for a plugin server. This is the number of threads or processes that can execute plugin code.</p>
+</dd></dl>
+<dl class="py data">
 <dt class="sig sig-object py" id="rixaplugin.settings.DISABLED_LOGGERS">
-<span class="sig-prename descclassname"><span class="pre">rixaplugin.settings.</span></span><span class="sig-name descname"><span class="pre">DISABLED_LOGGERS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['daphne.http_protocol',</span> <span class="pre">'daphne.server',</span> <span class="pre">'daphne.ws_protocol',</span> <span class="pre">'django.channels.server',</span> <span class="pre">'asyncio',</span> <span class="pre">'openai',</span> <span class="pre">'urllib3',</span> <span class="pre">'matplotlib',</span> <span class="pre">'sentence_transformers.SentenceTransformer',</span> <span class="pre">'IPKernelApp',</span> <span class="pre">'ipykernel',</span> <span class="pre">'Comm',</span> <span class="pre">'ipykernel.comm',</span> <span class="pre">'httpcore',</span> <span class="pre">'httpx']</span></em><a class="headerlink" href="#rixaplugin.settings.DISABLED_LOGGERS" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.settings.DISABLED_LOGGERS'">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">rixaplugin.settings.</span></span><span class="sig-name descname"><span class="pre">DISABLED_LOGGERS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['daphne.http_protocol',</span> <span class="pre">'daphne.server',</span> <span class="pre">'daphne.ws_protocol',</span> <span class="pre">'django.channels.server',</span> <span class="pre">'openai',</span> <span class="pre">'urllib3',</span> <span class="pre">'matplotlib',</span> <span class="pre">'sentence_transformers.SentenceTransformer',</span> <span class="pre">'IPKernelApp',</span> <span class="pre">'ipykernel',</span> <span class="pre">'Comm',</span> <span class="pre">'ipykernel.comm',</span> <span class="pre">'httpcore',</span> <span class="pre">'httpx',</span> <span class="pre">'Comm']</span></em><a class="headerlink" href="#rixaplugin.settings.DISABLED_LOGGERS" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.settings.DISABLED_LOGGERS'">¶</a></dt>
 <dd><p>Loggers that will be excluded on all outputs</p>
 </dd></dl>
 <dl class="py data">
@@ -482,6 +531,11 @@ with control sequences. Use this to deactivate colors in the console.</p>
 <span class="sig-prename descclassname"><span class="pre">rixaplugin.settings.</span></span><span class="sig-name descname"><span class="pre">LOG_FMT</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'%(levelname)s:%(name)s:%(session_id)s</span> <span class="pre">"%(message)s"</span> <span class="pre">(File</span> <span class="pre">"%(filename)s",</span> <span class="pre">line</span> <span class="pre">%(lineno)d)'</span></em><a class="headerlink" href="#rixaplugin.settings.LOG_FMT" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.settings.LOG_FMT'">¶</a></dt>
 <dd><p>Format to be used for logging. See <a class="reference external" href="https://docs.python.org/3/library/logging.html#logrecord-attributes">https://docs.python.org/3/library/logging.html#logrecord-attributes</a>
 There is an additional session_id attribute. It’s behaviour is defined by LOG_UID_MODE</p>
+</dd></dl>
+<dl class="py data">
+<dt class="sig sig-object py" id="rixaplugin.settings.LOG_REMOTE_EXCEPTIONS_LOCALLY">
+<span class="sig-prename descclassname"><span class="pre">rixaplugin.settings.</span></span><span class="sig-name descname"><span class="pre">LOG_REMOTE_EXCEPTIONS_LOCALLY</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#rixaplugin.settings.LOG_REMOTE_EXCEPTIONS_LOCALLY" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.settings.LOG_REMOTE_EXCEPTIONS_LOCALLY'">¶</a></dt>
+<dd><p>Log exceptions (that occurred locally) but are meant for remote plugins to the local log stream</p>
 </dd></dl>
 <dl class="py data">
 <dt class="sig sig-object py" id="rixaplugin.settings.MAX_LOG_SIZE">
@@ -502,6 +556,29 @@ There is an additional session_id attribute. It’s behaviour is defined by LOG_
 </section>
 <section id="module-rixaplugin">
 <span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-rixaplugin" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#module-rixaplugin'">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="rixaplugin.execute">
+<span class="sig-prename descclassname"><span class="pre">rixaplugin.</span></span><span class="sig-name descname"><span class="pre">execute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">function_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plugin_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.execute" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.execute'">¶</a></dt>
+<dd><p>Execute a function in the plugin system synchronously i.e. wait for the result.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>function_name</strong> – </p></li>
+<li><p><strong>plugin_name</strong> – </p></li>
+<li><p><strong>args</strong> – </p></li>
+<li><p><strong>kwargs</strong> – </p></li>
+<li><p><strong>timeout</strong> – Timeout in s before a TimeoutError is raised</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="rixaplugin.execute_code">
+<span class="sig-prename descclassname"><span class="pre">rixaplugin.</span></span><span class="sig-name descname"><span class="pre">execute_code</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">code</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.execute_code" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.execute_code'">¶</a></dt>
+<dd></dd></dl>
 </section>
 </section>
 </div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
@@ -521,15 +598,21 @@ There is an additional session_id attribute. It’s behaviour is defined by LOG_
 <li><a :data-current="activeSection === '#rixaplugin.settings.ALLOWED_PLUGIN_HOSTS'" class="reference internal" href="#rixaplugin.settings.ALLOWED_PLUGIN_HOSTS"><code class="docutils literal notranslate"><span class="pre">ALLOWED_PLUGIN_HOSTS</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.settings.ALLOW_NETWORK_RELAY'" class="reference internal" href="#rixaplugin.settings.ALLOW_NETWORK_RELAY"><code class="docutils literal notranslate"><span class="pre">ALLOW_NETWORK_RELAY</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.settings.CONSOLE_USE_COLORS'" class="reference internal" href="#rixaplugin.settings.CONSOLE_USE_COLORS"><code class="docutils literal notranslate"><span class="pre">CONSOLE_USE_COLORS</span></code></a></li>
+<li><a :data-current="activeSection === '#rixaplugin.settings.DEFAULT_MAX_WORKERS'" class="reference internal" href="#rixaplugin.settings.DEFAULT_MAX_WORKERS"><code class="docutils literal notranslate"><span class="pre">DEFAULT_MAX_WORKERS</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.settings.DISABLED_LOGGERS'" class="reference internal" href="#rixaplugin.settings.DISABLED_LOGGERS"><code class="docutils literal notranslate"><span class="pre">DISABLED_LOGGERS</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.settings.LOG_FILE_TYPE'" class="reference internal" href="#rixaplugin.settings.LOG_FILE_TYPE"><code class="docutils literal notranslate"><span class="pre">LOG_FILE_TYPE</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.settings.LOG_FMT'" class="reference internal" href="#rixaplugin.settings.LOG_FMT"><code class="docutils literal notranslate"><span class="pre">LOG_FMT</span></code></a></li>
+<li><a :data-current="activeSection === '#rixaplugin.settings.LOG_REMOTE_EXCEPTIONS_LOCALLY'" class="reference internal" href="#rixaplugin.settings.LOG_REMOTE_EXCEPTIONS_LOCALLY"><code class="docutils literal notranslate"><span class="pre">LOG_REMOTE_EXCEPTIONS_LOCALLY</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.settings.MAX_LOG_SIZE'" class="reference internal" href="#rixaplugin.settings.MAX_LOG_SIZE"><code class="docutils literal notranslate"><span class="pre">MAX_LOG_SIZE</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.settings.logfile_path'" class="reference internal" href="#rixaplugin.settings.logfile_path"><code class="docutils literal notranslate"><span class="pre">logfile_path</span></code></a></li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#module-rixaplugin.sync_api'" class="reference internal" href="#module-rixaplugin.sync_api">rixaplugin.sync_api module</a></li>
-<li><a :data-current="activeSection === '#module-rixaplugin'" class="reference internal" href="#module-rixaplugin">Module contents</a></li>
+<li><a :data-current="activeSection === '#module-rixaplugin'" class="reference internal" href="#module-rixaplugin">Module contents</a><ul>
+<li><a :data-current="activeSection === '#rixaplugin.execute'" class="reference internal" href="#rixaplugin.execute"><code class="docutils literal notranslate"><span class="pre">execute()</span></code></a></li>
+<li><a :data-current="activeSection === '#rixaplugin.execute_code'" class="reference internal" href="#rixaplugin.execute_code"><code class="docutils literal notranslate"><span class="pre">execute_code()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </div>
 </aside>

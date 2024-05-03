@@ -15,7 +15,7 @@
 <link href="../_static/bugfix.css?v=ad93a5b4" rel="stylesheet" type="text/css"/>
 <link href="../search.html" rel="search" title="Search"/>
 <link href="../genindex.html" rel="index" title="Index"/>
-<link href="rixaplugin.internal.html" rel="next" title="rixaplugin.internal package"/>
+<link href="rixaplugin.default_plugins.html" rel="next" title="rixaplugin.default_plugins package"/>
 <link href="rixaplugin.html" rel="prev" title="rixaplugin package"/>
 <script>
     <!-- Prevent Flash of wrong theme -->
@@ -74,7 +74,7 @@
 <a href="../index.html">Home</a>
 </nav><nav class="table w-full min-w-full my-6 lg:my-8">
 <ul class="current">
-<li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="modules.html">Modules<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul class="current" x-show="expanded">
+<li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="modules.html">rixaplugin<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul class="current" x-show="expanded">
 <li class="toctree-l2 current"><a class="reference internal" href="rixaplugin.html">rixaplugin package</a></li>
 </ul>
 </li>
@@ -82,6 +82,7 @@
 <li class="toctree-l1"><a class="reference internal" href="rixaplugin.pylot.html">rixaplugin.pylot package</a></li>
 <li class="toctree-l1"><a class="reference internal" href="rixaplugin.test.html">rixaplugin.test package</a></li>
 <li class="toctree-l1"><a class="reference internal" href="rixaplugin.internal.html">rixaplugin.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../issues.html">Plugin programming quickstart</a></li>
 </ul>
 </nav>
 </div>
@@ -101,7 +102,7 @@
 <path d="M240 856h120V616h240v240h120V496L480 316 240 496v360Zm-80 80V456l320-240 320 240v480H520V696h-80v240H160Zm320-350Z"></path>
 </svg>
 </a>
-<div class="mr-1">/</div><a class="hover:text-foreground overflow-hidden text-ellipsis whitespace-nowrap" href="modules.html">Modules</a>
+<div class="mr-1">/</div><a class="hover:text-foreground overflow-hidden text-ellipsis whitespace-nowrap" href="modules.html">rixaplugin</a>
 <div class="mr-1">/</div><a class="hover:text-foreground overflow-hidden text-ellipsis whitespace-nowrap" href="rixaplugin.html">rixaplugin package</a>
 <div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">rixaplugin.data_structures package</span>
 </nav>
@@ -302,7 +303,7 @@
 <span id="rixaplugin-data-structures-rixa-exceptions-module"></span><h2>rixaplugin.data_structures.rixa_exceptions module<a class="headerlink" href="#module-rixaplugin.data_structures.rixa_exceptions" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#module-rixaplugin.data_structures.rixa_exceptions'">¶</a></h2>
 <dl class="py exception">
 <dt class="sig sig-object py" id="rixaplugin.data_structures.rixa_exceptions.FunctionNotFoundException">
-<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">rixaplugin.data_structures.rixa_exceptions.</span></span><span class="sig-name descname"><span class="pre">FunctionNotFoundException</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">function_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Function</span> <span class="pre">not</span> <span class="pre">found'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.rixa_exceptions.FunctionNotFoundException" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.rixa_exceptions.FunctionNotFoundException'">¶</a></dt>
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">rixaplugin.data_structures.rixa_exceptions.</span></span><span class="sig-name descname"><span class="pre">FunctionNotFoundException</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Function</span> <span class="pre">not</span> <span class="pre">found'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.rixa_exceptions.FunctionNotFoundException" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.rixa_exceptions.FunctionNotFoundException'">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></p>
 </dd></dl>
 <dl class="py exception">
@@ -326,9 +327,22 @@
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></p>
 </dd></dl>
 <dl class="py exception">
+<dt class="sig sig-object py" id="rixaplugin.data_structures.rixa_exceptions.RemoteOfflineException">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">rixaplugin.data_structures.rixa_exceptions.</span></span><span class="sig-name descname"><span class="pre">RemoteOfflineException</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Remote</span> <span class="pre">is</span> <span class="pre">currently</span> <span class="pre">marked</span> <span class="pre">as</span> <span class="pre">offline'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.rixa_exceptions.RemoteOfflineException" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.rixa_exceptions.RemoteOfflineException'">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#rixaplugin.data_structures.rixa_exceptions.RemoteUnavailableException" title="rixaplugin.data_structures.rixa_exceptions.RemoteUnavailableException"><code class="xref py py-class docutils literal notranslate"><span class="pre">RemoteUnavailableException</span></code></a></p>
+<p>Exception for the remote being marked as offline/is_alive being false.</p>
+<p>Usually this happens when a previous call</p>
+</dd></dl>
+<dl class="py exception">
 <dt class="sig sig-object py" id="rixaplugin.data_structures.rixa_exceptions.RemoteTimeoutException">
 <em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">rixaplugin.data_structures.rixa_exceptions.</span></span><span class="sig-name descname"><span class="pre">RemoteTimeoutException</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Remote</span> <span class="pre">time</span> <span class="pre">out'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.rixa_exceptions.RemoteTimeoutException" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.rixa_exceptions.RemoteTimeoutException'">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#rixaplugin.data_structures.rixa_exceptions.RemoteUnavailableException" title="rixaplugin.data_structures.rixa_exceptions.RemoteUnavailableException"><code class="xref py py-class docutils literal notranslate"><span class="pre">RemoteUnavailableException</span></code></a></p>
+</dd></dl>
+<dl class="py exception">
+<dt class="sig sig-object py" id="rixaplugin.data_structures.rixa_exceptions.RemoteUnavailableException">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">rixaplugin.data_structures.rixa_exceptions.</span></span><span class="sig-name descname"><span class="pre">RemoteUnavailableException</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Remote</span> <span class="pre">unavailable'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.rixa_exceptions.RemoteUnavailableException" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.rixa_exceptions.RemoteUnavailableException'">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></p>
+<p>Base exception for the remote being unavailable for various reasons</p>
 </dd></dl>
 <dl class="py exception">
 <dt class="sig sig-object py" id="rixaplugin.data_structures.rixa_exceptions.SignatureMismatchException">
@@ -340,7 +354,7 @@
 <span id="rixaplugin-data-structures-variables-module"></span><h2>rixaplugin.data_structures.variables module<a class="headerlink" href="#module-rixaplugin.data_structures.variables" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#module-rixaplugin.data_structures.variables'">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="rixaplugin.data_structures.variables.PluginVariable">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">rixaplugin.data_structures.variables.</span></span><span class="sig-name descname"><span class="pre">PluginVariable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">var_type=&lt;class</span> <span class="pre">'str'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_value=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">readable=Scope.LOCAL</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">writable=Scope.LOCAL</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.variables.PluginVariable" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.variables.PluginVariable'">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">rixaplugin.data_structures.variables.</span></span><span class="sig-name descname"><span class="pre">PluginVariable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">var_type=&lt;class</span> <span class="pre">'str'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">readable=Scope.LOCAL</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">writable=Scope.LOCAL</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.variables.PluginVariable" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.variables.PluginVariable'">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <dl class="py method">
 <dt class="sig sig-object py" id="rixaplugin.data_structures.variables.PluginVariable.get">
@@ -422,7 +436,9 @@
 <li><a :data-current="activeSection === '#rixaplugin.data_structures.rixa_exceptions.PluginNotFoundException'" class="reference internal" href="#rixaplugin.data_structures.rixa_exceptions.PluginNotFoundException"><code class="docutils literal notranslate"><span class="pre">PluginNotFoundException</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.data_structures.rixa_exceptions.QueueOverflowException'" class="reference internal" href="#rixaplugin.data_structures.rixa_exceptions.QueueOverflowException"><code class="docutils literal notranslate"><span class="pre">QueueOverflowException</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.data_structures.rixa_exceptions.RemoteException'" class="reference internal" href="#rixaplugin.data_structures.rixa_exceptions.RemoteException"><code class="docutils literal notranslate"><span class="pre">RemoteException</span></code></a></li>
+<li><a :data-current="activeSection === '#rixaplugin.data_structures.rixa_exceptions.RemoteOfflineException'" class="reference internal" href="#rixaplugin.data_structures.rixa_exceptions.RemoteOfflineException"><code class="docutils literal notranslate"><span class="pre">RemoteOfflineException</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.data_structures.rixa_exceptions.RemoteTimeoutException'" class="reference internal" href="#rixaplugin.data_structures.rixa_exceptions.RemoteTimeoutException"><code class="docutils literal notranslate"><span class="pre">RemoteTimeoutException</span></code></a></li>
+<li><a :data-current="activeSection === '#rixaplugin.data_structures.rixa_exceptions.RemoteUnavailableException'" class="reference internal" href="#rixaplugin.data_structures.rixa_exceptions.RemoteUnavailableException"><code class="docutils literal notranslate"><span class="pre">RemoteUnavailableException</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.data_structures.rixa_exceptions.SignatureMismatchException'" class="reference internal" href="#rixaplugin.data_structures.rixa_exceptions.SignatureMismatchException"><code class="docutils literal notranslate"><span class="pre">SignatureMismatchException</span></code></a></li>
 </ul>
 </li>

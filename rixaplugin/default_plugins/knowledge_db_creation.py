@@ -1,8 +1,5 @@
 import logging
-
-import click
 import numpy as np
-from numpy import float32
 from sentence_transformers import SentenceTransformer, util
 from sentence_transformers.util import cos_sim
 from bs4 import BeautifulSoup
@@ -30,6 +27,9 @@ knowledge_logger = logging.getLogger("knowledge_db")
 import torch
 from transformers import AutoModel, AutoTokenizer
 
+embedding_df_loc = rixaplugin.variables.PluginVariable("embedding_df_loc", str, default="embeddings.pkl")
+
+
 tokenizer = AutoTokenizer.from_pretrained('Snowflake/snowflake-arctic-embed-m-long')
 model = AutoModel.from_pretrained('Snowflake/snowflake-arctic-embed-m-long', trust_remote_code=True,
                                   add_pooling_layer=False, safe_serialization=True)
@@ -40,7 +40,6 @@ model.to(device)
 # tokenizer.to(device)
 model.eval()
 
-embedding_df_loc = rixaplugin.variables.PluginVariable("embedding_df_loc", str, default="embeddings.pkl")
 
 if os.path.exists(embedding_df_loc.get()):
     embeddings_db = pd.read_pickle(embedding_df_loc.get())
@@ -216,14 +215,12 @@ def add_urls(urls, tags):
     embeddings_db = pd.concat([embeddings_db, df], ignore_index=True)
     embeddings_db.to_pickle(embedding_df_loc.get())
 
-
 def query_db_as_string(query, top_k=3, query_tags=None, embd_db=None):
     df, scores = query_db(query, top_k, query_tags, embd_db)
     result = ""
     for i, row in df.iterrows():
         result += f"DOCUMENT TITLE: {row['document_title']}\nDOCUMENT SOURCE: {row['source']}\nSUBTITLE: {row['content']}\n\n"
     return result
-
 
 def query_db(query, top_k=5, query_tags=None, embd_db=None):
     global embeddings_db

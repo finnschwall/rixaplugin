@@ -18,10 +18,12 @@ class QueueOverflowException(Exception):
         self.message = message
         super().__init__(self.message)
 
+
 class SignatureMismatchException(Exception):
     def __init__(self, message="Signature mismatch"):
         self.message = message
         super().__init__(self.message)
+
 
 class NoEffectException(Exception):
     def __init__(self, message="Valid statement but no effect"):
@@ -37,7 +39,27 @@ class RemoteException(Exception):
         super().__init__(f"{type}: {message}\nRemote traceback:\n{traceback}")
 
 
-class RemoteTimeoutException(Exception):
+class RemoteUnavailableException(Exception):
+    """
+    Base exception for the remote being unavailable for various reasons
+    """
+    def __init__(self, message="Remote unavailable"):
+        self.message = message
+        super().__init__(self.message)
+
+
+class RemoteOfflineException(RemoteUnavailableException):
+    """
+    Exception for the remote being marked as offline/is_alive being false.
+
+    Usually this happens when a previous call
+    """
+    def __init__(self, message="Remote is currently marked as offline"):
+        self.message = message
+        super().__init__(self.message)
+
+
+class RemoteTimeoutException(RemoteUnavailableException):
     def __init__(self, message="Remote time out"):
         self.message = message
         super().__init__(self.message)
