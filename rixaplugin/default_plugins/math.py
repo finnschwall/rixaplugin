@@ -5,11 +5,7 @@ import rixaplugin.sync_api as api
 from sympy import latex, lambdify
 import numpy as np
 
-# @plugfunc()
-# def test():
-#     return "Hello World!"
 
-var1 = 4
 @plugfunc()
 def draw_plot(function, x_range_start=-10, x_range_end=10):
     """

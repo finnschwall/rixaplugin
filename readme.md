@@ -22,6 +22,10 @@ pip3 install git+https://github.com/finnschwall/rixaplugin#egg=rixaplugin[normal
 
 ## Getting Started
 
+### Tutorial
+
+see [tutorial](https://github.com/finnschwall/rixaplugin/tree/main/examples/tutorial)
+
 ### Configuring a plugin
 Create a `config.ini` in the same folder. For more infos see the settings section in the [docs](https://finnschwall.github.io/rixaplugin/).
 
