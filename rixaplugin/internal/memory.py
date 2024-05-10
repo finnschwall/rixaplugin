@@ -12,7 +12,7 @@ from rixaplugin.data_structures.enums import FunctionPointerType
 import secrets
 from rixaplugin.data_structures.rixa_exceptions import FunctionNotFoundException, PluginNotFoundException
 
-core_log = logging.getLogger("core")
+core_log = logging.getLogger("rixa.core")
 from rixaplugin import settings
 from rixaplugin.internal import utils
 
@@ -69,8 +69,9 @@ class PluginMemory:
         self._client_connections = set()
         self.debug_mode = settings.DEBUG
         self.server = None
+        self.main_thread_id = threading.get_ident()
 
-        id_str = os.path.abspath(__file__) + sys.platform + sys.version
+        id_str = os.path.abspath(__file__) + str(sys.implementation) + str(sys.prefix)
         hash_object = hashlib.sha256(id_str.encode())
         hex_dig = hash_object.hexdigest()
         self.ID = hex_dig[:16]
@@ -94,20 +95,22 @@ class PluginMemory:
 
     def add_plugin(self, plugin_dict, identity, remote_origin, origin_is_client=False):
         if not self.allow_remote_functions:
-            print("skipping...")
             return
         local_plugin_names = [i["name"] for i in self.plugins.values() if i["type"] & FunctionPointerType.LOCAL]
 
         # add functions to function list
         new_names = []
         to_pop = []
-
+        print("---")
         for i in plugin_dict.values():
             if i["name"] in local_plugin_names:
                 core_log.warning(f"Plugin '{i['name']}' already exists locally. Skipping...")
                 to_pop.append(i["name"])
                 continue
             if i["name"] in self.plugins:
+                # print(i["name"])
+                # print(self.plugins[i["name"]]["id"].decode())
+                # print(i["id"])
                 if self.plugins[i["name"]]["id"] == i["id"]:
                     core_log.debug(f"Plugin '{i['name']}' updated")
                 else:
@@ -115,8 +118,10 @@ class PluginMemory:
                     core_log.error(f"Plugin '{i['name']}' already exists with different ID. Skipping...")
                     continue
                 del self.plugins[i["name"]]
+                self.function_list = [j for j in self.function_list if j["plugin_name"] != i["name"]]
             new_names.append(i["name"])
-            i["id"] = identity
+            i["id"] = i["id"] #identity
+            i["remote_id"] = identity
             i["remote_origin"] = remote_origin
             if origin_is_client:
                 i["type"] |= FunctionPointerType.CLIENT
@@ -124,7 +129,8 @@ class PluginMemory:
                 i["type"] |= FunctionPointerType.SERVER
             for j in i["functions"]:
                 j["type"] = i["type"]
-                j["id"] = identity
+                j["id"] = i["id"]#identity
+                j["remote_id"] = identity
                 j["remote_origin"] = remote_origin
                 self.function_list.append(j)
             # remote_plugin_to_module(i)
@@ -142,7 +148,8 @@ class PluginMemory:
         #             old_module_dict.clear()
         #             old_module_dict.update(remote_module.__dict__)
         plugin_dict = {k: v for k, v in plugin_dict.items() if k not in to_pop}
-        core_log.debug("Received new plugins: " + ", ".join(new_names))
+        if new_names:
+            core_log.debug("Received new plugins: " + ", ".join(new_names))
         self.plugins = {**self.plugins, **plugin_dict}
 
     def add_remote_functions(self, func_list, plugin_id, origin_is_client=False):

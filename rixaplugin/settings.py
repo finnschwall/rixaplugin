@@ -106,9 +106,9 @@ DISABLED_LOGGERS += ['daphne.http_protocol', 'daphne.server', 'daphne.ws_protoco
                      "IPKernelApp", "ipykernel", "Comm", "ipykernel.comm", "httpcore", "httpx",
                      "Comm"]
 disabled_logger_conf = {i: {'level': 'WARNING'} for i in DISABLED_LOGGERS}
-for i in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
-    if i.name in DISABLED_LOGGERS:
-        i.disabled = True
+# for i in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
+#     if i.name in DISABLED_LOGGERS:
+#         i.disabled = True
 
 LOG_FMT = config("LOG_FMT",
                  # default="%(levelname)s:%(name)s \"%(message)s\" %(asctime)s-(File \"%(filename)s\", line %(lineno)d)"
@@ -130,9 +130,13 @@ with control sequences. Use this to deactivate colors in the console.
 
 LOG_TIME_FMT = config("LOG_TIME_FMT", default="%H:%M:%S")
 
-LOG_LEVEL = config("LOG_LEVEL", default="INFO")
+GLOBAL_LOG_LEVEL = config("GLOBAL_LOG_LEVEL", default="INFO")
+RIXA_LOG_LEVEL = config("RIXA_LOG_LEVEL", default="DEBUG")
 
-logging.setLoggerClass(_RIXALogger)
+USE_RIXA_LOGGING = config("USE_RIXA_LOGGING", default=True, cast=bool)
+
+if USE_RIXA_LOGGING:
+    logging.setLoggerClass(_RIXALogger)
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -144,7 +148,7 @@ LOGGING = {
             "time_fmt": LOG_TIME_FMT
         },
         'RIXAFile': {
-            '()': 'plugins.log_helper.RIXAFormatter',
+            '()': 'rixaplugin.internal.rixalogger.RIXAFormatter',
             "colormode": LOG_FILE_TYPE,
             "fmt_string": LOG_FMT,
             "time_fmt": LOG_TIME_FMT
@@ -158,7 +162,7 @@ LOGGING = {
     },
     'handlers': {
         'console': {
-            'level': LOG_LEVEL,
+            'level': GLOBAL_LOG_LEVEL,
             'filters': ['RIXAFilter'],
             'class': 'logging.StreamHandler',
             'formatter': 'RIXAConsole'
@@ -168,7 +172,7 @@ LOGGING = {
             'maxBytes': MAX_LOG_SIZE * 1024,
             'backupCount': 2,
             'filename': logfile_path,
-            'level': LOG_LEVEL,
+            'level': GLOBAL_LOG_LEVEL,
             'filters': ['RIXAFilter'],
             'formatter': 'RIXAFile',
         } if LOG_FILE_TYPE != "none" else {'class': "logging.NullHandler"}
@@ -181,5 +185,8 @@ LOGGING = {
         },
     }
 }
-LOGGING['loggers'].update(disabled_logger_conf)
-logging.config.dictConfig(LOGGING)
+if USE_RIXA_LOGGING:
+    LOGGING['loggers'].update(disabled_logger_conf)
+    logging.config.dictConfig(LOGGING)
+    rixa_logger = logging.getLogger("rixa")
+    rixa_logger.setLevel(RIXA_LOG_LEVEL)

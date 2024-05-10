@@ -1,3 +1,5 @@
+import pickle
+
 from rixaplugin.decorators import plugfunc, worker_init
 from rixaplugin import worker_context as ctx
 import rixaplugin
@@ -8,16 +10,21 @@ from transformers import AutoModel, AutoTokenizer
 import logging
 import numpy as np
 
-knowledge_logger = logging.getLogger("knowledge_db")
+knowledge_logger = logging.getLogger("rixa.knowledge_db")
 
 model_name = rixaplugin.variables.PluginVariable("model_name", str, default="Snowflake/snowflake-arctic-embed-m-long")
-embedding_df_loc = rixaplugin.variables.PluginVariable("embedding_df_loc", str, default="embeddings.pkl")
+embedding_df_loc = rixaplugin.variables.PluginVariable("embedding_df_loc", str, default="")
 
 settings.DEFAULT_MAX_WORKERS = 1
 settings.ACCEPT_REMOTE_PLUGINS = 0
 
 @worker_init()
 def worker_init():
+    ctx.embeddings_db = pd.read_pickle(embedding_df_loc.get() + "embeddings_df.pkl")
+    with open(embedding_df_loc.get() + "embeddings.pkl", "rb") as f:
+        ctx.embeddings_list = pickle.load(f)
+    knowledge_logger.info(f"Loaded {len(ctx.embeddings_db)} entries from {embedding_df_loc.get()}")
+    #model = AutoModel.from_pretrained("Snowflake/snowflake-arctic-embed-m-long", trust_remote_code=True, add_pooling_layer=False, safe_serialization=True)
     ctx.tokenizer = AutoTokenizer.from_pretrained(model_name.get())
     ctx.model = AutoModel.from_pretrained(model_name.get(), trust_remote_code=True,
                                       add_pooling_layer=False, safe_serialization=True)
@@ -27,55 +34,55 @@ def worker_init():
     ctx.model.to(ctx.device)
     ctx.model.eval()
 
-    ctx.embeddings_db = pd.read_pickle(embedding_df_loc.get())
-    knowledge_logger.info(f"Loaded {len(ctx.embeddings_db)} entries from {embedding_df_loc.get()}")
 
-
-def _query_db(query, top_k=5, query_tags=None, min_score = 0.5, embd_db=None):
-    if not embd_db:
-        embd_db = ctx.embeddings_db
+def _query_db(query, top_k=5, query_tags=None, min_score = 0.5, max_chars=3000):
+    df = ctx.embeddings_db
     query_prefix = 'Represent this sentence for searching relevant passages: '
     queries = [query]
-    queries_with_prefix = ["{}{}".format(query_prefix, i) for i in queries]
+    queries_with_prefix = [f"{query_prefix}{i}" for i in queries]
     query_tokens = ctx.tokenizer(queries_with_prefix, padding=True, truncation=True, return_tensors='pt', max_length=512)
     query_tokens.to(ctx.device)
     with torch.no_grad():
         query_embeddings = ctx.model(**query_tokens)[0][:, 0]
     query_embeddings = query_embeddings.cpu()
-    query_embeddings = torch.nn.functional.normalize(query_embeddings, p=2, dim=1)
+    query_embeddings = torch.nn.functional.normalize(query_embeddings, p=2, dim=1).numpy()
+
     if query_tags:
-        filtered_df = embd_db[embd_db['tags'].apply(lambda tags: query_tags.issubset(tags))]
+        filtered_df = df[df['tags'].apply(lambda tags: query_tags.issubset(tags))]
     else:
-        filtered_df = embd_db
-    embd_series = filtered_df["embedding"]
-    arr = torch.zeros(len(embd_series), len(embd_series[0]), dtype=torch.float32)
-    for i, x in enumerate(embd_series):
-        arr[i] = x
-    scores = torch.mm(query_embeddings, arr.transpose(0, 1))
+        filtered_df = df
 
-    values, indices = torch.sort(scores, descending=True)
+    idx = list(filtered_df.index)
 
-    filtered_indices = indices[0][values[0] > min_score][:top_k]
-    filtered_scores = values[0][values[0] > min_score][:top_k].tolist()
-    filtered_rows = filtered_df.iloc[filtered_indices.cpu().numpy()]
+    filtered_embeddings = ctx.embeddings_list[idx]
+    scores = np.dot(query_embeddings, filtered_embeddings.T).flatten()
+    idx = np.argsort(scores)[-top_k:][::-1]
 
-    return filtered_rows, filtered_scores
-    idx = reversed(np.argsort(scores[0]))[:top_k]
-    scores = scores[0][idx].tolist()
-    return filtered_df.iloc[idx], scores
+    ret_idx = np.where(scores[idx] > min_score)
 
+    ret_df = filtered_df.iloc[idx].iloc[ret_idx]
+    ret_scores = scores[idx][ret_idx]
+    if max_chars==0 or max_chars==-1 or max_chars is None:
+        return ret_df, ret_scores
+    else:
+        char_count = [len(i) for i in ret_df["content"]]
+        cumsum = np.cumsum(char_count)
+        idx = np.where(cumsum < max_chars)
+        return ret_df.iloc[idx], ret_scores[idx]
 
 @plugfunc()
-def query_db_as_string(query, top_k=3, query_tags=None, min_score=0.5):
-    df, scores = _query_db(query, top_k, query_tags, min_score)
+def query_db_as_string(query, top_k=3, query_tags=None, min_score=0.5, max_chars=3500):
+    df, scores = _query_db(query, top_k, query_tags, min_score, max_chars)
     result = ""
     for i, row in df.iterrows():
-        result += f"DOCUMENT TITLE: {row['document_title']}\nSUBTITLE: {row['content']}\nDOCUMENT SOURCE: {row['source']}\n\n"
+        result += f"TITLE: {row['document_title']}\nSUBTITLE: {row['subtitle']}\nID: {i}\n" \
+                  f"CONTENT: {row['content']}\n\n"
+        #SOURCE: {row['source']}
     return result
 
 @plugfunc()
-def query_db(query, top_k=5, query_tags=None, embd_db=None, min_score=0.5):
-    filtered_df, scores = _query_db(query, top_k, query_tags, min_score)
+def query_db(query, top_k=5, query_tags=None, embd_db=None, min_score=0.5, max_chars=3500):
+    filtered_df, scores = _query_db(query, top_k, query_tags, min_score, max_chars)
     ret_df = filtered_df.drop("embedding", axis=1).reset_index()
     ret_df['tags'] = ret_df['tags'].apply(list)
     return ret_df.to_dict(orient='records'), scores

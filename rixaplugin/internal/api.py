@@ -12,7 +12,7 @@ import asyncio
 import pickle
 import logging
 
-api_logger = logging.getLogger("API_INTERNAL")
+api_logger = logging.getLogger("rixa.api_internal")
 
 
 # usually all plugin functions are run not directly but through the plugin system i.e. an executor
@@ -53,17 +53,17 @@ def construct_api_module():
                 i["args"].remove(j)
 
     def factory_sync(name, args, kwargs):
+
         api_obj = _plugin_ctx.get()
         try:
             #
             req_id = _req_id.get()
-
             if _plugin_id:
                 if name == "__get_global_ctx__":
                     raise Exception("NOT IMPLEMENTED")
                     return
                 try:
-                    parsed = pickle.dumps([req_id, name, args, kwargs])
+                    parsed = pickle.dumps([req_id,"API_FUNCTION", name, args, kwargs])
                 except Exception as e:
                     raise e
                 _socket.get().send(parsed)
@@ -313,6 +313,7 @@ def _call_function_sync_process(name, plugin_name, req_id, args, kwargs, ):
 
 def _call_function_sync(func, api_obj, args, kwargs, ):
     _plugin_ctx.set(api_obj)
+    print()
     return_val = func(*args, **kwargs)
     return return_val
 

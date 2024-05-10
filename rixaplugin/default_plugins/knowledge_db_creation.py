@@ -1,9 +1,10 @@
+import json
 import logging
 import pickle
 
 import numpy as np
-from sentence_transformers import SentenceTransformer, util
-from sentence_transformers.util import cos_sim
+# from sentence_transformers import SentenceTransformer, util
+# from sentence_transformers.util import cos_sim
 from bs4 import BeautifulSoup
 import re
 import rixaplugin
@@ -29,11 +30,13 @@ knowledge_logger = logging.getLogger("knowledge_db")
 import torch
 from transformers import AutoModel, AutoTokenizer
 
-model=None
-tokenizer=None
-device=None
+model = None
+tokenizer = None
+device = None
 embeddings_db = None
 embeddings_list = None
+
+
 def init():
     global embeddings_db
     global model
@@ -44,12 +47,15 @@ def init():
     tokenizer = AutoTokenizer.from_pretrained('Snowflake/snowflake-arctic-embed-m-long')
     model = AutoModel.from_pretrained('Snowflake/snowflake-arctic-embed-m-long', trust_remote_code=True,
                                       add_pooling_layer=False, safe_serialization=True)
+
+    # tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/msmarco-distilbert-base-v4')
+    # model = AutoModel.from_pretrained('sentence-transformers/msmarco-distilbert-base-v4', trust_remote_code=True,)
+
     device = "cpu"
     if torch.cuda.is_available():
         device = "cuda"
     model.to(device)
     model.eval()
-
 
     if os.path.exists("embeddings_df.pkl"):
         embeddings_db = pd.read_pickle("embeddings_df.pkl")
@@ -61,15 +67,197 @@ def init():
             embeddings_list = pickle.load(f)
 
 
-
-
-
-
-
 def reset_db():
-    global embeddings_db
+    global embeddings_db, embeddings_list
     embeddings_db = pd.DataFrame(columns=["document_title", "source", "content", "subtitle", "embedding"])
+    # embeddings_db.to_pickle("embeddings_df.pkl")
+    embeddings_list = None
+
+
+def from_json(path):
+    global embeddings_db, embeddings_list
+    with open(path, "r") as f:
+        data = json.load(f)
+
+    metadata = data[0]
+    entries = []
+    for entry in data[1:]:
+        subtitle = ""
+        if "subheader" in entry and entry["subheader"]:
+            subtitle = entry["subheader"] + ""
+        if "page" in entry and entry["page"]:
+            subtitle += "\nPage: " + str(entry["page"])
+        entries.append({"document_title": metadata["title"], "source": metadata["source"],
+                        "content": entry["content"], "tags": metadata["tags"], "subtitle": subtitle})
+
+    df = pd.DataFrame(entries)
+    add_df(df)
+    # df, embeddings_list = calculate_embeddings(df)
+    # with open("embeddings.pkl", "wb") as f:
+    #     pickle.dump(embeddings_list, f)
+    # embeddings_db = pd.concat([embeddings_db, df], ignore_index=True)
+    # embeddings_db.to_pickle("embeddings_df.pkl")
+
+
+
+
+
+def entity_list_to_df(entities):
+    df = pd.DataFrame(entities)
+    return df
+
+
+from tqdm import tqdm
+
+def add_df(df):
+    global embeddings_db, embeddings_list
+    additional_embeddings = calculate_embeddings(df)
+    if embeddings_list is None:
+        embeddings_list = additional_embeddings
+    else:
+        embeddings_list=np.concatenate((embeddings_list, additional_embeddings,), axis=0)
+    # embeddings_list.append(additional_embeddings)
+    with open("embeddings.pkl", "wb") as f:
+        pickle.dump(embeddings_list, f)
+    embeddings_db = pd.concat([embeddings_db, df], ignore_index=True)
     embeddings_db.to_pickle("embeddings_df.pkl")
+
+
+def calculate_embeddings(df):
+    global tokenizer, model, device
+    content_col = df["content"].tolist()
+    total_rows = len(content_col)
+    # df["embedding"] = None
+    # 8245MiB usage for model size 547 MiB with chunk size 100
+
+    embeddings_list_temp = []
+    chunk_size = 100
+    for start_idx in tqdm(range(0, total_rows, chunk_size)):
+        end_idx = min(start_idx + chunk_size, total_rows)
+        chunk = content_col[start_idx:end_idx]
+        document_tokens = tokenizer(chunk, padding=True, truncation=True, return_tensors='pt',
+                                    max_length=512)
+        document_tokens.to(device)
+        with torch.no_grad():
+            doument_embeddings = model(**document_tokens)[0][:, 0]
+        embeddings = torch.nn.functional.normalize(doument_embeddings, p=2, dim=1).to("cpu")
+        for i in embeddings:
+            embeddings_list_temp.append(i)
+        # embeddings_list_temp.append(*embeddings)
+        # print(embeddings.shape)
+        # for i, embedding in enumerate(embeddings, start=start_idx):
+        #     df.at[i, "embedding"] = embedding
+    return np.array(embeddings_list_temp)
+    # sentence transformers. chunking doesnt work. Probably tensors dont get sent back to cpu
+    # content_col = df["content"].tolist()
+    # total_rows = len(content_col)
+    # chunk_size = 100
+    # df["embedding"] = None
+    # for start_idx in tqdm(range(0, total_rows, chunk_size)):
+    #     end_idx = min(start_idx + chunk_size, total_rows)
+    #     chunk = content_col[start_idx:end_idx]
+    #     embeddings = model.encode(chunk, convert_to_tensor=False, show_progress_bar=False)
+    #     # print(embeddings)
+    #     for i, embedding in enumerate(embeddings):
+    #         # print(embedding)
+    #         df.at[i + start_idx, "embedding"] = embedding
+    # return df
+
+
+def add_wiki(path_to_xml, tags):
+    global embeddings_db, embeddings_list
+    entities = get_entities_from_wiki_xml(path_to_xml)
+    df = entity_list_to_df(entities)
+    knowledge_logger.info(f"Parsed {len(df)} entities from {path_to_xml}\n"
+                          f"Starting to calculate embeddings. This may take a while.")
+    df['tags'] = [tags for _ in range(len(df))]
+    add_df(df)
+
+
+
+
+def add_urls(urls, tags):
+    global embeddings_db
+    entities = urls_to_entities(urls)
+    df = entity_list_to_df(entities)
+    df = calculate_embeddings(df)
+    df['tags'] = [tags for _ in range(len(df))]
+    embeddings_db = pd.concat([embeddings_db, df], ignore_index=True)
+    embeddings_db.to_pickle(embedding_df_loc)
+
+
+def query_db_as_string(query, top_k=3, query_tags=None, embd_db=None):
+    df, scores = query_db(query, top_k, query_tags, embd_db)
+    result = ""
+    for i, row in df.iterrows():
+        result += f"DOCUMENT TITLE: {row['document_title']}\nDOCUMENT SOURCE: {row['source']}\nSUBTITLE: {row['content']}\n\n"
+    return result
+
+
+def query_db(query, top_k=5, min_score=0.5, query_tags=None):
+    global embeddings_db, embeddings_list
+    df = embeddings_db
+    query_prefix = 'Represent this sentence for searching relevant passages: '
+    queries = [query]
+    queries_with_prefix = [f"{query_prefix}{i}" for i in queries]
+    query_tokens = tokenizer(queries_with_prefix, padding=True, truncation=True, return_tensors='pt', max_length=512)
+    query_tokens.to(device)
+    with torch.no_grad():
+        query_embeddings = model(**query_tokens)[0][:, 0]
+    query_embeddings = query_embeddings.cpu()
+    query_embeddings = torch.nn.functional.normalize(query_embeddings, p=2, dim=1).numpy()
+
+    if query_tags:
+        filtered_df = df[df['tags'].apply(lambda tags: query_tags.issubset(tags))]
+    else:
+        filtered_df = df
+
+    idx = list(filtered_df.index)
+
+    filtered_embeddings = embeddings_list[idx]
+    scores = np.dot(query_embeddings, filtered_embeddings.T).flatten()
+    idx = np.argsort(scores)[-top_k:][::-1]
+
+    ret_idx = np.where(scores[idx] > min_score)
+    return filtered_df.iloc[idx].iloc[ret_idx], scores[idx][ret_idx]
+    # query_prefix = 'Represent this sentence for searching relevant passages: '
+    # queries = [query]
+    # queries_with_prefix = ["{}{}".format(query_prefix, i) for i in queries]
+    # query_tokens = tokenizer(queries_with_prefix, padding=True, truncation=True, return_tensors='pt', max_length=512)
+    # query_tokens.to(device)
+    # with torch.no_grad():
+    #     query_embeddings = model(**query_tokens)[0][:, 0]
+    # query_embeddings = query_embeddings.cpu()
+    # query_embeddings = torch.nn.functional.normalize(query_embeddings, p=2, dim=1)
+    # if query_tags:
+    #     filtered_df = embd_db[embd_db['tags'].apply(lambda tags: query_tags.issubset(tags))]
+    # else:
+    #     filtered_df = embd_db
+    # embd_series = filtered_df["embedding"]
+    # arr = torch.zeros(len(embd_series), len(embd_series[0]), dtype=torch.float32)
+    # for i, x in enumerate(embd_series):
+    #     arr[i] = x
+    # scores = torch.mm(query_embeddings, arr.transpose(0, 1))
+    # idx = reversed(np.argsort(scores[0]))[:5]
+    # scores = scores[0][idx].tolist()
+    # return filtered_df.iloc[idx], scores
+
+    # for sentence transformers library
+    # if not embd_db:
+    #     embd_db = embeddings_db
+    # query_embedding = model.encode(query, convert_to_tensor=False)
+    # if query_tags:
+    #     filtered_df = embd_db[embd_db['tags'].apply(lambda tags: query_tags.issubset(tags))]
+    # else:
+    #     filtered_df = embd_db
+    # embd_series = filtered_df["embedding"]
+    # arr = np.ndarray((len(embd_series), len(embd_series[0])), dtype=float32)
+    # for i, x in enumerate(embd_series):
+    #     arr[i] = x
+    # scores = util.semantic_search(query_embedding, arr.astype(float32), top_k=top_k)
+    # ids = [i["corpus_id"] for i in scores[0]]
+    # scores = [i["score"] for i in scores[0]]
+    # return filtered_df.iloc[ids], scores
 
 
 def html_to_entities(html_content, source="NOT SPECIFIED"):
@@ -168,141 +356,3 @@ def get_entities_from_wiki_xml(path):
             entities.append(entity)
             # sections[i] = text
     return entities
-
-
-def entity_list_to_df(entities):
-    df = pd.DataFrame(entities)
-    return df
-
-
-from tqdm import tqdm
-
-
-def calculate_embeddings(df):
-    content_col = df["content"].tolist()
-    total_rows = len(content_col)
-    df["embedding"] = None
-    # 8245MiB usage for model size 547 MiB with chunk size 100
-
-    embeddings_list = []
-    chunk_size = 100
-    for start_idx in tqdm(range(0, total_rows, chunk_size)):
-        end_idx = min(start_idx + chunk_size, total_rows)
-        chunk = content_col[start_idx:end_idx]
-        document_tokens = tokenizer(chunk, padding=True, truncation=True, return_tensors='pt',
-                                    max_length=512)
-        document_tokens.to(device)
-        with torch.no_grad():
-            doument_embeddings = model(**document_tokens)[0][:, 0]
-        embeddings = torch.nn.functional.normalize(doument_embeddings, p=2, dim=1).to("cpu")
-        embeddings_list.append(embeddings)
-        for i, embedding in enumerate(embeddings, start=start_idx):
-            df.at[i, "embedding"] = embedding
-    return df, embeddings_list
-    # sentence transformers. chunking doesnt work. Probably tensors dont get sent back to cpu
-    # content_col = df["content"].tolist()
-    # total_rows = len(content_col)
-    # chunk_size = 100
-    # df["embedding"] = None
-    # for start_idx in tqdm(range(0, total_rows, chunk_size)):
-    #     end_idx = min(start_idx + chunk_size, total_rows)
-    #     chunk = content_col[start_idx:end_idx]
-    #     embeddings = model.encode(chunk, convert_to_tensor=False, show_progress_bar=False)
-    #     # print(embeddings)
-    #     for i, embedding in enumerate(embeddings):
-    #         # print(embedding)
-    #         df.at[i + start_idx, "embedding"] = embedding
-    # return df
-
-
-def add_wiki(path_to_xml, tags):
-    global embeddings_db, embeddings_list
-    entities = get_entities_from_wiki_xml(path_to_xml)
-    df = entity_list_to_df(entities)
-    knowledge_logger.info(f"Parsed {len(df)} entities from {path_to_xml}\n"
-                          f"Starting to calculate embeddings. This may take a while.")
-    df, embeddings_list = calculate_embeddings(df)
-    with open("embeddings.pkl", "wb") as f:
-        pickle.dump(embeddings_list, f)
-    df['tags'] = [tags for _ in range(len(df))]
-    embeddings_db = pd.concat([embeddings_db, df], ignore_index=True)
-    embeddings_db.to_pickle("embeddings_df.pkl")
-
-
-def add_urls(urls, tags):
-    global embeddings_db
-    entities = urls_to_entities(urls)
-    df = entity_list_to_df(entities)
-    df = calculate_embeddings(df)
-    df['tags'] = [tags for _ in range(len(df))]
-    embeddings_db = pd.concat([embeddings_db, df], ignore_index=True)
-    embeddings_db.to_pickle(embedding_df_loc)
-
-def query_db_as_string(query, top_k=3, query_tags=None, embd_db=None):
-    df, scores = query_db(query, top_k, query_tags, embd_db)
-    result = ""
-    for i, row in df.iterrows():
-        result += f"DOCUMENT TITLE: {row['document_title']}\nDOCUMENT SOURCE: {row['source']}\nSUBTITLE: {row['content']}\n\n"
-    return result
-
-def query_db(query, top_k=5, query_tags=None):
-    global embeddings_db, embeddings_list
-    df = embeddings_db
-    query_prefix = 'Represent this sentence for searching relevant passages: '
-    queries = [query]
-    queries_with_prefix = [f"{query_prefix}{i}" for i in queries]
-    query_tokens = tokenizer(queries_with_prefix, padding=True, truncation=True, return_tensors='pt', max_length=512)
-    query_tokens.to(device)
-    with torch.no_grad():
-        query_embeddings = model(**query_tokens)[0][:, 0]
-    query_embeddings = query_embeddings.cpu()
-    query_embeddings = torch.nn.functional.normalize(query_embeddings, p=2, dim=1).numpy()
-
-    if query_tags:
-        filtered_df = df[df['tags'].apply(lambda tags: query_tags.issubset(tags))]
-    else:
-        filtered_df = df
-
-    filtered_embeddings = embeddings_list[filtered_df['embedding_id']]
-    scores = np.dot(query_embeddings, filtered_embeddings.T).flatten()
-    idx = np.argsort(scores)[-top_k:][::-1]
-
-    return filtered_df.iloc[idx], scores[idx]
-    # query_prefix = 'Represent this sentence for searching relevant passages: '
-    # queries = [query]
-    # queries_with_prefix = ["{}{}".format(query_prefix, i) for i in queries]
-    # query_tokens = tokenizer(queries_with_prefix, padding=True, truncation=True, return_tensors='pt', max_length=512)
-    # query_tokens.to(device)
-    # with torch.no_grad():
-    #     query_embeddings = model(**query_tokens)[0][:, 0]
-    # query_embeddings = query_embeddings.cpu()
-    # query_embeddings = torch.nn.functional.normalize(query_embeddings, p=2, dim=1)
-    # if query_tags:
-    #     filtered_df = embd_db[embd_db['tags'].apply(lambda tags: query_tags.issubset(tags))]
-    # else:
-    #     filtered_df = embd_db
-    # embd_series = filtered_df["embedding"]
-    # arr = torch.zeros(len(embd_series), len(embd_series[0]), dtype=torch.float32)
-    # for i, x in enumerate(embd_series):
-    #     arr[i] = x
-    # scores = torch.mm(query_embeddings, arr.transpose(0, 1))
-    # idx = reversed(np.argsort(scores[0]))[:5]
-    # scores = scores[0][idx].tolist()
-    # return filtered_df.iloc[idx], scores
-
-    # for sentence transformers library
-    # if not embd_db:
-    #     embd_db = embeddings_db
-    # query_embedding = model.encode(query, convert_to_tensor=False)
-    # if query_tags:
-    #     filtered_df = embd_db[embd_db['tags'].apply(lambda tags: query_tags.issubset(tags))]
-    # else:
-    #     filtered_df = embd_db
-    # embd_series = filtered_df["embedding"]
-    # arr = np.ndarray((len(embd_series), len(embd_series[0])), dtype=float32)
-    # for i, x in enumerate(embd_series):
-    #     arr[i] = x
-    # scores = util.semantic_search(query_embedding, arr.astype(float32), top_k=top_k)
-    # ids = [i["corpus_id"] for i in scores[0]]
-    # scores = [i["score"] for i in scores[0]]
-    # return filtered_df.iloc[ids], scores

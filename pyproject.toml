@@ -17,7 +17,13 @@ dependencies = [
     "docstring_parser",
     "click",
     "pyzmq",
-    "msgpack"
+    "msgpack",
+    "msgpack-numpy",
+]
+[project.optional-dependencies]
+knowlede_db = [
+    "tika",
+     "beautifulsoup4"
 ]
 [project.scripts]
 rixaplugin = "rixaplugin.internal.cli:main"

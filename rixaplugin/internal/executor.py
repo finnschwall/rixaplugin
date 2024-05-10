@@ -1,6 +1,8 @@
+import asyncio
 import atexit
 import concurrent
 import pickle
+import time
 import types
 from concurrent.futures import ThreadPoolExecutor
 import zmq
@@ -16,28 +18,31 @@ from rixaplugin.internal import api, utils
 from rixaplugin.pylot import python_parsing
 import ast
 
-core_log = logging.getLogger("plugin_core")
+core_log = logging.getLogger("rixa.core")
 
 PMF_DebugLocal = PluginModeFlags.LOCAL | PluginModeFlags.THREAD
 PMF_Server = PluginModeFlags.SERVER | PluginModeFlags.NETWORK | PluginModeFlags.THREAD
 
 
-async def _start_process_server():
+async def _start_process_server(socket):
     executor = _memory.executor
-    socket = _memory.zmq_context.socket(zmq.ROUTER)
-    socket.bind(f"ipc:///tmp/worker_{_memory.ID}.ipc")
     while True:
         identity, message = await socket.recv_multipart()
         message = pickle.loads(message)
         if "ABORT" in message:
             core_log.error("Worker requested shutdown. Shutting down immediately.")
             _memory.clean()
+        # if message[0] == "EXECUTE_FUNCTION":
         proc_api = executor.get_api(message[0])
-        api_callable = getattr(proc_api, message[1])
-        if proc_api.is_remote:
-            await api_callable(message[2], message[3])
-        else:
-            await api_callable(*message[2], **message[3])
+        if message[1] == "EXECUTE_FUNCTION":
+            future = await execute(message[2], message[3], message[4], message[5], proc_api, True, message[6])
+            future.add_done_callback(lambda fut: socket.send_multipart([identity, pickle.dumps(fut.result())]))
+        if message[1] == "API_FUNCTION":
+            api_callable = getattr(proc_api, message[2])
+            if proc_api.is_remote:
+                await api_callable(message[3], message[4])
+            else:
+                await api_callable(*message[3], **message[4])
 
 
 def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_jupyter_messages=10):
@@ -52,17 +57,22 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
     _memory.event_loop = asyncio.get_event_loop()
     if mode & PluginModeFlags.THREAD and mode & PluginModeFlags.PROCESS:
         raise Exception("Cannot run in both THREAD and PROCESS mode.")
-
+    api.construct_api_module()
     if mode & PluginModeFlags.THREAD:
         _memory.executor = CountingThreadPoolExecutor(max_workers=num_workers, initializer=api._init_thread_worker)
         test_future = _memory.executor.submit(api._test_job)
 
     if mode & PluginModeFlags.PROCESS:
-        fut = asyncio.create_task(_start_process_server())
+        socket = _memory.zmq_context.socket(zmq.ROUTER)
+        socket.bind(f"ipc:///tmp/worker_{_memory.ID}.ipc")
+
+        fut = asyncio.create_task(_start_process_server(socket))
+
         _memory.executor = CountingProcessPoolExecutor(max_workers=num_workers, initializer=api._init_process_worker,
                                                        initargs=(_memory.ID,))
         fake_api = api.BaseAPI(0, 0)
         test_future = _memory.executor.submit(api._test_job, fake_api)
+
 
     if mode & PluginModeFlags.LOCAL:
         pass
@@ -84,7 +94,7 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
     _memory.mode = mode
     _memory.plugin_system_active = True
 
-    api.construct_api_module()
+
     atexit.register(_memory.clean)
     core_log.debug("Plugin system initialized")
 
@@ -271,6 +281,9 @@ async def execute(function_name, plugin_name=None, args=None, kwargs=None, api_o
         kwargs = {}
     if args is None:
         args = ()
+    if not isinstance(args, tuple):
+        if not isinstance(args, list):
+            args = [args]
     if not _memory.plugin_system_active:
         raise Exception("Plugin system not initialized")
     if not api_obj:

@@ -1,3 +1,4 @@
+import pickle
 import threading, asyncio
 from . import decorators
 from .internal.executor import init_plugin_system, execute as async_execute, execute_code as async_execute_code
@@ -53,10 +54,24 @@ def execute(function_name, plugin_name=None, args=None, kwargs=None, timeout=30)
     :param timeout: Timeout in s before a TimeoutError is raised
     :return:
     """
+    # print("A")
     api_obj = _api.get_api()
-    future = asyncio.run_coroutine_threadsafe(
-        _execute_and_await(function_name, plugin_name, args=args, kwargs=kwargs, api_obj=api_obj,
-                           timeout=timeout), _memory.event_loop)
+    # print("B")
+    procmode = _api._mode.get()
+    if procmode == 2:
+        process_socket = _api._socket.get()
+        msg = [_api._req_id.get(), "EXECUTE_FUNCTION", function_name, plugin_name, args, kwargs, timeout]
+        parsed = pickle.dumps(msg)
+        process_socket.send(parsed)
+        ret = pickle.loads(process_socket.recv())
+        return ret
+    else:
+        cur_thread_id = threading.get_ident()
+        if cur_thread_id == _memory.main_thread_id:
+            raise Exception("Cannot execute plugin code synchronously in main thread! Use async_execute instead.")
+        future = asyncio.run_coroutine_threadsafe(
+            _execute_and_await(function_name, plugin_name, args=args, kwargs=kwargs, api_obj=api_obj,
+                               timeout=timeout), _memory.event_loop)
     return future.result()
 
 

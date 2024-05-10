@@ -7,8 +7,8 @@ import logging
 from rixaplugin import settings
 from rixaplugin.settings import DEBUG
 from rixaplugin.pylot.python_parsing import  generate_python_doc
-task_superviser_log = logging.getLogger("task_superviser")
-discover_log = logging.getLogger("plugin_discovery")
+task_superviser_log = logging.getLogger("rixa.task_superviser")
+discover_log = logging.getLogger("rixa.plugin_discovery")
 # export PYTHONASYNCIODEBUG=1
 
 

@@ -9,9 +9,13 @@ import numpy as np
 @plugfunc()
 def draw_plot(function, x_range_start=-10, x_range_end=10):
     """
-    Draw a plot of a function
+    Draw a plot of a function that depends on x
 
     Example: draw_plot("x**2+3", -10, 10)
+    Variables other than x will not be recognized.
+    This uses sympy. So keep in mind that the function must be a valid sympy expression.
+    I.e. e^x would exp(x).
+    Stuff like "1/x if x != 0 else 0" is not supported as it is not a valid sympy expression.
     :param function: Function as a string. x is the name of the main variable
     :param x_range_start:
     :param x_range_end:
@@ -19,6 +23,8 @@ def draw_plot(function, x_range_start=-10, x_range_end=10):
     """
     # from rixaplugin.data_structures import rixa_exceptions
     # raise rixa_exceptions.RemoteOfflineException("Plugin 'math' is currently unreachable")
+    if "x" not in function:
+        raise ValueError("Function must contain x as the main variable")
     x = sympy.symbols('x')
     y = sympy.sympify(function)
     x_vals = list(np.linspace(x_range_start, x_range_end, 100))
@@ -113,7 +119,6 @@ def evaluate(expression):
     :return: Expression or number
     """
     return str(sympy.sympify(expression))
-
 
 # @plugfunc()
 # def calculate_limit(function, x_val, direction="both"):

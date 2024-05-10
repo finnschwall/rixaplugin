@@ -1,6 +1,8 @@
 import pickle
 
 import msgpack
+import msgpack_numpy
+
 
 import rixaplugin.internal.rixalogger
 from rixaplugin.internal import utils
@@ -13,9 +15,9 @@ from rixaplugin.data_structures.rixa_exceptions import RemoteException
 from rixaplugin.internal.utils import *
 import asyncio
 import zmq
-
+msgpack_numpy.patch()
 # logging.basicConfig(level=logging.DEBUG)
-network_log = logging.getLogger("network")
+network_log = logging.getLogger("rixa.plugin_net")
 
 
 # network_log.setLevel(0)
@@ -136,7 +138,7 @@ class NetworkAdapter:
             self.pending_requests[request_id] = future
 
         remote_func_type = plugin_entry["type"]
-        await self.send(plugin_entry["id"], message)
+        await self.send(plugin_entry["remote_id"], message)
         # time estimate is always awaited
         # need to check whether this makes sense or if call without acknowledgement is possible
         answer = await utils.event_wait(event, 3)  # event.wait()
@@ -251,7 +253,10 @@ class NetworkAdapter:
             api_func_name = msg.get("api_func_name")
             args = msg.get("args")
             kwargs = msg.get("kwargs")
+            print("----")
+            print(api_obj)
             api_callable = getattr(api_obj, api_func_name)
+            print(api_callable)
             await api_callable(*args, **kwargs)
 
         elif header_flags & HeaderFlags.FUNCTION_RETURN:
@@ -372,10 +377,6 @@ async def create_and_start_plugin_client(server_address, port=2809, raise_on_con
     else:
         asyncio.create_task(supervise_future(future))
         return client
-
-
-
-
 
 class PluginClient(NetworkAdapter):
 
