@@ -17,7 +17,7 @@ Alternatively this can be used to connect to any RIXAplugin.
 
 ## Installation
 ```
-pip3 install git+https://github.com/finnschwall/rixaplugin#egg=rixaplugin[normal]
+pip3 install git+https://github.com/finnschwall/rixaplugin
 ```
 
 ## Getting Started

@@ -44,6 +44,7 @@ class HeaderFlags(AutoNumber):
     LOG = auto()
     FUNCTION_NOT_FOUND = auto()
     API_CALL = auto()
+    UPDATE_REMOTE_PLUGINS = auto()
 
 
 class CallstackType(AutoNumber):

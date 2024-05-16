@@ -1,9 +1,87 @@
+import base64
+import os
+
 import sympy
 import plotly.express as px
 from rixaplugin.decorators import plugfunc
 import rixaplugin.sync_api as api
 from sympy import latex, lambdify
 import numpy as np
+import subprocess as sp
+import plotly.graph_objects as go
+from rixaplugin import variables as var
+
+
+latex_available = var.PluginVariable("LATEX_AVAILABLE", bool,default=False, readable=var.Scope.LOCAL)
+
+@plugfunc()
+def draw_feynman(feynman):
+    """
+    Draw a feynman diagram using tikz-feynman
+
+    Pay special attention with the argument. Use triple quotes with r prefix to avoid escaping issues.
+    This method does not raise any exceptions when the diagram is not valid.
+
+    Example:
+    Electron-positron to muon-antimuon via photon
+    draw_feynman(r'''\feynmandiagram [horizontal=a to b] {
+  i1 [particle=\(e^{-}\)] -- [fermion] a -- [fermion] i2 [particle=\(e^{+}\)],
+  a -- [photon, edge label=\(\gamma\), momentum'=\(k\)] b,
+  f1 [particle=\(\mu^{+}\)] -- [fermion] b -- [fermion] f2 [particle=\(\mu^{-}\)],
+};''')
+    :param feynman: feynman-tikz code as a string
+    :return: This function immediately displays the diagram
+    """
+    latex_start = r"""\documentclass[convert={density=300,size=600x400,outext=.png}]{standalone}
+\usepackage{tikz-feynman}
+\begin{document}
+"""
+    latex_end = """
+\end{document}"""
+    if not r"\feynmandiagram" in feynman and "feynmandiagram" in feynman:
+        feynman = feynman.replace("feynmandiagram", r"\feynmandiagram")
+
+    latex_total = latex_start + feynman + latex_end
+    id = str(hash(latex_total))
+
+    if not latex_available.get():
+        api.display(html=f"<h3>NO LATEX COMPILER AVAILABLE</h3><code>{feynman}</code>")
+        return
+
+    try:
+        with open(f"tmp/temp.tex", "w") as f:
+            f.write(latex_total)
+        sp.call(["lualatex", "-shell-escape", "-interaction=nonstopmode", f"temp.tex"], cwd="tmp", stdout=sp.DEVNULL, stderr=sp.DEVNULL)
+        with open(f"tmp/temp.png", "rb") as f:
+            img_base64 = base64.b64encode(f.read()).decode()
+            print("displaying")
+            api.display(html=f'<img src="data:image/png;base64,{img_base64}" style="background-color:white;height:100%; width:auto"/>')
+    except Exception as e:
+        print(e)
+        api.display(html=f"<h3>ERROR IN DRAWING DIAGRAM</h3><code>{feynman}</code>")
+        # api.display(html=f.read())
+
+@plugfunc()
+def draw_plot_3D(function, xstart=-5, xend=5, ystart=-5,yend=5):
+    """
+    Draw a 3D plot of a function
+
+    Example: draw_plot_3D("x**2+y**2")
+    Same rules as for draw_plot apply here!
+    :return:
+    """
+    if not function:
+        api.display_message("No function supplied", 5, "danger")
+        return
+    expr = sympy.sympify(function)
+    res = 40
+    res = res * 1j
+    lambd_expr = sympy.lambdify(list(expr.free_symbols), expr)
+    x, y = np.mgrid[xstart:xend:res, ystart:yend:res]
+    z = lambd_expr(x, y)
+    fig = go.Figure(data=[go.Surface(x=x, y=y, z=z)])
+    api.display(html=fig.to_html(include_plotlyjs=False, full_html=False))
+
 
 
 @plugfunc()

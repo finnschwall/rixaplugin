@@ -8,7 +8,7 @@ from rixaplugin.pylot.proxy_builder import create_module
 from rixaplugin.pylot.python_parsing import generate_python_doc
 import zmq.asyncio as aiozmq
 import logging
-from rixaplugin.data_structures.enums import FunctionPointerType
+from rixaplugin.data_structures.enums import FunctionPointerType, HeaderFlags
 import secrets
 from rixaplugin.data_structures.rixa_exceptions import FunctionNotFoundException, PluginNotFoundException
 
@@ -71,6 +71,8 @@ class PluginMemory:
         self.server = None
         self.main_thread_id = threading.get_ident()
 
+        self.connected_clients = []
+
         id_str = os.path.abspath(__file__) + str(sys.implementation) + str(sys.prefix)
         hash_object = hashlib.sha256(id_str.encode())
         hex_dig = hash_object.hexdigest()
@@ -101,7 +103,6 @@ class PluginMemory:
         # add functions to function list
         new_names = []
         to_pop = []
-        print("---")
         for i in plugin_dict.values():
             if i["name"] in local_plugin_names:
                 core_log.warning(f"Plugin '{i['name']}' already exists locally. Skipping...")
@@ -151,6 +152,10 @@ class PluginMemory:
         if new_names:
             core_log.debug("Received new plugins: " + ", ".join(new_names))
         self.plugins = {**self.plugins, **plugin_dict}
+
+
+
+
 
     def add_remote_functions(self, func_list, plugin_id, origin_is_client=False):
         # DEPRECATED. Use add_plugin instead
@@ -281,6 +286,8 @@ class PluginMemory:
         #    readable_str += f"\t{generate_python_doc(i, include_docstr=False)}\n"
         for key, val in self.plugins.items():
             if excluded_plugins and key in excluded_plugins:
+                continue
+            if val["is_alive"] is False:
                 continue
             for j in val["functions"]:
                 if excluded_functions and j["name"] in excluded_functions:

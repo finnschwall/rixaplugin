@@ -11,7 +11,8 @@ from rixaplugin.data_structures.enums import HeaderFlags
 
 import zmq.auth
 
-from rixaplugin.data_structures.rixa_exceptions import RemoteException
+from rixaplugin.data_structures.rixa_exceptions import RemoteException, RemoteTimeoutException, \
+    RemoteUnavailableException
 from rixaplugin.internal.utils import *
 import asyncio
 import zmq
@@ -102,6 +103,13 @@ class NetworkAdapter:
 
         ret = {"HEAD": HeaderFlags.EXCEPTION_RETURN, "message": str(exception), "request_id": request_id,
                "type": type(exception).__name__, "traceback": exc_str}
+
+        print("-------------")
+        print(exception.__dict__)
+        if isinstance(exception, RemoteUnavailableException):
+            if exception.plugin_name:
+                print("B")
+                ret["offline_plugin_name"] = exception.plugin_name
         await self.send(identity, ret)
 
 
@@ -142,10 +150,22 @@ class NetworkAdapter:
         # time estimate is always awaited
         # need to check whether this makes sense or if call without acknowledgement is possible
         answer = await utils.event_wait(event, 3)  # event.wait()
+        # print("----")
+        # print(api_obj.__dict__)
+        # print(api_obj.is_remote)
         if not answer:
+            print("\n\n")
+            print("NO ANSWER")
+            print(plugin_entry["plugin_name"])
             _memory.plugins[plugin_entry["plugin_name"]]["is_alive"] = False
+
             del self.api_objs[request_id]
-            raise Exception(f"No acknowledgement for function call. Plugin '{plugin_entry['plugin_name']}' offline?")
+            # if api_obj.is_remote:
+            #     api_obj.network_adapter.send_exception(api_obj.identity, request_id, Exception("Plugin offline"))
+            #     # await self.send_exception(api_obj.remote_id, request_id, Exception("Plugin offline"))
+            # else:
+            raise RemoteTimeoutException(f"No acknowledgement for function call. Plugin '{plugin_entry['plugin_name']}' offline?",
+                                         plugin_name=plugin_entry["plugin_name"])
         time_estimate = self.time_estimate[request_id]
         del self.time_estimate[request_id]
         del self.time_estimate_events[request_id]
@@ -227,10 +247,19 @@ class NetworkAdapter:
             if "plugin_signatures" in msg:
                 _memory.add_plugin(msg["plugin_signatures"], identity, self, origin_is_client=True)
             await self.send(identity, ret)
-
             self.first_connection.set()
-            # await self.con.send_multipart(
-            #     [identity, msgpack.packb(ret)])
+
+            if settings.ALLOW_NETWORK_RELAY:
+                # need to propagate new plugins to connected clients
+                for client in _memory.connected_clients:
+                    ret = {"HEAD": HeaderFlags.UPDATE_REMOTE_PLUGINS | HeaderFlags.SERVER, "ID": _memory.ID,
+                           "plugin_signatures": _memory.get_sendable_plugins()}
+                    await self.send(client, ret)
+
+            _memory.connected_clients.append(identity)
+        elif header_flags & HeaderFlags.UPDATE_REMOTE_PLUGINS:
+            if "plugin_signatures" in msg:
+                _memory.add_plugin(msg["plugin_signatures"], identity, self, origin_is_client=self.is_server)
 
 
         elif header_flags & HeaderFlags.FUNCTION_CALL:
@@ -253,10 +282,7 @@ class NetworkAdapter:
             api_func_name = msg.get("api_func_name")
             args = msg.get("args")
             kwargs = msg.get("kwargs")
-            print("----")
-            print(api_obj)
             api_callable = getattr(api_obj, api_func_name)
-            print(api_callable)
             await api_callable(*args, **kwargs)
 
         elif header_flags & HeaderFlags.FUNCTION_RETURN:
@@ -288,6 +314,12 @@ class NetworkAdapter:
                     network_log.warning(f"Exception occured in one way call: {exc}")
             else:
                 network_log.warning(f"Received exception for unknown request id: {exc}")
+            if "offline_plugin_name" in msg:
+                network_log.warning(f"Indirect remote plugin '{msg['offline_plugin_name']}' is offline")
+                try:
+                    _memory.plugins[msg["offline_plugin_name"]]["is_alive"] = False
+                except Exception as e:
+                    network_log.exception(f"Error setting plugin offline.")
 
         elif header_flags & HeaderFlags.TIME_ESTIMATE_AND_ACKNOWLEDGEMENT:
             request_id = msg.get("request_id")

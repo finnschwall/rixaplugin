@@ -43,8 +43,9 @@ class RemoteUnavailableException(Exception):
     """
     Base exception for the remote being unavailable for various reasons
     """
-    def __init__(self, message="Remote unavailable"):
+    def __init__(self, message="Remote unavailable", plugin_name=None):
         self.message = message
+        self.plugin_name = plugin_name
         super().__init__(self.message)
 
 
@@ -54,12 +55,14 @@ class RemoteOfflineException(RemoteUnavailableException):
 
     Usually this happens when a previous call
     """
-    def __init__(self, message="Remote is currently marked as offline"):
-        self.message = message
-        super().__init__(self.message)
+    def __init__(self, message="Remote is currently marked as offline", plugin_name=None):
+        # self.message = message
+        # self.plugin_name = plugin_name
+        super().__init__(message, plugin_name)
 
 
 class RemoteTimeoutException(RemoteUnavailableException):
-    def __init__(self, message="Remote time out"):
-        self.message = message
-        super().__init__(self.message)
+    def __init__(self, message="Remote time out", plugin_name=None):
+        # self.message = message
+        # self.plugin_name = plugin_name
+        super().__init__(message, plugin_name)

@@ -313,7 +313,6 @@ def _call_function_sync_process(name, plugin_name, req_id, args, kwargs, ):
 
 def _call_function_sync(func, api_obj, args, kwargs, ):
     _plugin_ctx.set(api_obj)
-    print()
     return_val = func(*args, **kwargs)
     return return_val
 

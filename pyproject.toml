@@ -19,6 +19,8 @@ dependencies = [
     "pyzmq",
     "msgpack",
     "msgpack-numpy",
+    "python-decouple",
+    "psutil"
 ]
 [project.optional-dependencies]
 knowlede_db = [

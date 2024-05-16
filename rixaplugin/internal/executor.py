@@ -104,8 +104,13 @@ async def execute_networked(func_name, plugin_name, args, kwargs, oneway, reques
     plugin_entry = get_function_entry(func_name, plugin_name)
     api_obj = api.RemoteAPI(request_id, identity, network_adapter)
 
-    fut = await _execute(plugin_entry, args, kwargs, api_obj, return_future=True)
-
+    try:
+        fut = await _execute(plugin_entry, args, kwargs, api_obj, return_future=True)
+    except Exception as e:
+        print("ABC")
+        print(e.__dict__)
+        await network_adapter.send_exception(identity, request_id, e)
+        return
     try:
         return_val = await fut
         if not oneway:

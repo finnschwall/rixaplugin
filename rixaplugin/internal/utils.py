@@ -138,9 +138,11 @@ def make_discoverable(id: str, endpoint: str, port: int, plugins: list) -> None:
             "port": port,
             "plugins": plugins
         }
-
-    with open(settings.PLUGIN_REGISTRY, 'w') as f:
-        json.dump(registry, f)
+    try:
+        with open(settings.PLUGIN_REGISTRY, 'w') as f:
+            json.dump(registry, f)
+    except:
+        pass
 
 def discover_plugins() -> list[dict]:
     """

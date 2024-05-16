@@ -55,7 +55,7 @@ except KeyError:
 # WORKING_DIRECTORY = os.path.abspath(config_dir)
 
 
-DEBUG = config("DEBUG_MODE", default=True, cast=bool)
+DEBUG = config("DEBUG", default=True, cast=bool)
 
 LOG_REMOTE_EXCEPTIONS_LOCALLY = config("LOG_EXCEPTIONS_LOCALLY", default=True, cast=bool)
 """Log exceptions (that occurred locally) but are meant for remote plugins to the local log stream
