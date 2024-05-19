@@ -91,6 +91,11 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
         core_log.info("Jupyter logging enabled")
     if test_future:
         ret = test_future.result()
+    if mode & PluginModeFlags.SERVER:
+        from rixaplugin.internal.networking import create_and_start_plugin_server
+        asyncio.create_task(create_and_start_plugin_server(settings.DEFAULT_PLUGIN_SERVER_PORT,
+                                                           use_auth=not settings.USE_AUTH_SYSTEM, return_future=False))
+
     _memory.mode = mode
     _memory.plugin_system_active = True
 
@@ -107,8 +112,6 @@ async def execute_networked(func_name, plugin_name, args, kwargs, oneway, reques
     try:
         fut = await _execute(plugin_entry, args, kwargs, api_obj, return_future=True)
     except Exception as e:
-        print("ABC")
-        print(e.__dict__)
         await network_adapter.send_exception(identity, request_id, e)
         return
     try:
@@ -209,6 +212,7 @@ async def execute_sync(entry, args, kwargs, api_obj, return_future):
 
 async def execute_async(entry, args, kwargs, api_obj, return_future):
     fut = asyncio.create_task(api._call_function_async(entry["pointer"], api_obj, args, kwargs))
+    _memory.tasks_in_system -= 1
     if return_future:
         return fut
     else:
@@ -226,15 +230,9 @@ async def _execute(plugin_entry, args=(), kwargs={}, api_obj=None, return_future
                    timeout=30):
     if api_obj is None:
         api_obj = api.BaseAPI(0, 0)
-        # cur_api = api._plugin_ctx.get()
-        # if cur_api.request_id == -1 and cur_api.identity==-1:
-        #     if _memory.mode & PluginModeFlags.JUPYTER:
-        #         api_obj = api.JupyterAPI(0, 0)
-        #     else:
-        #         api_obj = api.BaseAPI(0, 0)
-        # else:
-        #     api_obj = cur_api
-    # print(plugin_entry["name"], plugin_entry["type"], type(api_obj))
+    if return_future:
+        # tasks that don't return are tasks too. But it's hard to accurately check if/when they're done.
+        _memory.tasks_in_system += 1
     if plugin_entry["type"] & FunctionPointerType.LOCAL:
         if plugin_entry["type"] & FunctionPointerType.SYNC:
             return await execute_sync(plugin_entry, args, kwargs, api_obj, return_future=return_future)
@@ -326,6 +324,7 @@ class CountingThreadPoolExecutor(concurrent.futures.ThreadPoolExecutor):
             ))
 
     def _task_completed(self, future):
+        _memory.tasks_in_system -= 1
         self._active_tasks.remove(future)
 
     def get_queued_task_count(self):
@@ -365,6 +364,7 @@ class CountingProcessPoolExecutor(concurrent.futures.ProcessPoolExecutor):
 
     def _task_completed(self, future):
         self._active_tasks -= 1
+        _memory.tasks_in_system -= 1
         asyncio.run_coroutine_threadsafe(self.remove_api(future.request_id), _memory.event_loop)
 
     async def remove_api(self, request_id):

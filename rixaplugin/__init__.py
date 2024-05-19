@@ -8,6 +8,7 @@ from .internal.memory import _memory, get_function_entry
 from .internal.utils import supervise_future
 from .internal import api as _api
 from .data_structures import variables
+from rixaplugin import settings
 
 get_state_info = _memory.__str__
 get_plugin_info = _memory.pretty_print_plugin

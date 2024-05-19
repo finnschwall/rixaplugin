@@ -74,7 +74,7 @@ def draw_plot_3D(function, xstart=-5, xend=5, ystart=-5,yend=5):
         api.display_message("No function supplied", 5, "danger")
         return
     expr = sympy.sympify(function)
-    res = 40
+    res = 50
     res = res * 1j
     lambd_expr = sympy.lambdify(list(expr.free_symbols), expr)
     x, y = np.mgrid[xstart:xend:res, ystart:yend:res]
@@ -105,7 +105,7 @@ def draw_plot(function, x_range_start=-10, x_range_end=10):
         raise ValueError("Function must contain x as the main variable")
     x = sympy.symbols('x')
     y = sympy.sympify(function)
-    x_vals = list(np.linspace(x_range_start, x_range_end, 100))
+    x_vals = list(np.linspace(x_range_start, x_range_end, 200))
     # use lambdify to generate y values
 
     func = lambdify(x, y)

@@ -1,8 +1,9 @@
+import os
 import pickle
 
 import msgpack
 import msgpack_numpy
-
+from zmq.auth.asyncio import AsyncioAuthenticator
 
 import rixaplugin.internal.rixalogger
 from rixaplugin.internal import utils
@@ -16,6 +17,7 @@ from rixaplugin.data_structures.rixa_exceptions import RemoteException, RemoteTi
 from rixaplugin.internal.utils import *
 import asyncio
 import zmq
+
 msgpack_numpy.patch()
 # logging.basicConfig(level=logging.DEBUG)
 network_log = logging.getLogger("rixa.plugin_net")
@@ -25,35 +27,55 @@ network_log = logging.getLogger("rixa.plugin_net")
 # network_log.addHandler(logging.FileHandler("network.log"))
 
 
-#bad hack but required for now
+# bad hack but required for now
 # msgpack.packb = pickle.dumps
 # msgpack.unpackb = pickle.loads
 
-def generate_curve_keys(key_dir):
-    s_pub, s_sec = zmq.auth.create_certificates(key_dir, "server")
-    c_pub, c_sec = zmq.auth.create_certificates(key_dir, "client")
-    return {"server": (s_pub, s_sec), "client": (c_pub, c_sec)}
+
+def create_keys(name=None, metadata=None, server_keys=False):
+    keys_dir = os.path.join(settings.config_dir, 'auth_keys')
+    for d in [keys_dir]:
+        if not os.path.exists(d):
+            os.mkdir(d)
+    if not os.path.exists(keys_dir):
+        os.mkdir(keys_dir)
+    if server_keys or name == "server":
+        if os.path.isfile(os.path.join(keys_dir, "server.key")):
+            network_log.critical("Server key overridden. Was this on purpose? Previous key lost!")
+    if server_keys:
+        public_file, secret_file = zmq.auth.create_certificates(
+            keys_dir, "server",
+        )
+        return public_file, secret_file
+    if not name:
+        raise Exception("No name specified")
+
+    public_file, secret_file = zmq.auth.create_certificates(
+        keys_dir, name, metadata
+    )
+    return public_file, secret_file
 
 
-async def create_and_start_plugin_server(port, address=None, allow_any_connection=False):
-    if allow_any_connection:
+async def create_and_start_plugin_server(port, address=None, use_auth=False, return_future=True):
+    if not use_auth:
         network_log.warning("Allowing any connection to the server. Disable for production!")
-        # warnings.warn("Allowing any connection to the server. Disable for production!")
-    # else:
-    #     # TODO curve pair check
-    #     raise NotImplementedError()
+
     if _memory.server:
         raise Exception("Server already running")
-    server = PluginServer(port, address, use_curve=not allow_any_connection, manually_created=False)
+    server = PluginServer(port, address, use_curve=use_auth, manually_created=False)
+
     future = _memory.event_loop.create_task(server.listen())
     _memory.server = server
-    return server, future
+    if return_future:
+        return server, future
+    else:
+        asyncio.create_task(supervise_future(future))
+        return server
 
 
 class NetworkAdapter:
     # unify client and server/abstract those parts that are present in both.
-    # this is now meant purely low level so no reference to the _memory object
-    def __init__(self, port, use_curve=True, manually_created=True):
+    def __init__(self, port, use_curve=True, manually_created=True, address=None):
         self.port = port
         self.use_curve = use_curve
         self.con = None
@@ -64,11 +86,10 @@ class NetworkAdapter:
         self.is_server = None
         self.is_initialized = False
         self.api_objs = {}
+        self.auth = None
 
         if manually_created:
             network_log.warning("Manually created network adapter. No automatic resource management. Cleanup required!")
-
-
 
     async def send(self, identity, data, already_serialized=False):
         if not already_serialized:
@@ -79,7 +100,7 @@ class NetworkAdapter:
                 network_log.error(f"A message could not be serialized: {data}")
                 # return
         if self.is_server:
-            if identity==0:
+            if identity == 0:
                 raise Exception("Identity is 0")
             await self.con.send_multipart([identity, data])
         else:
@@ -104,21 +125,17 @@ class NetworkAdapter:
         ret = {"HEAD": HeaderFlags.EXCEPTION_RETURN, "message": str(exception), "request_id": request_id,
                "type": type(exception).__name__, "traceback": exc_str}
 
-        print("-------------")
-        print(exception.__dict__)
         if isinstance(exception, RemoteUnavailableException):
             if exception.plugin_name:
-                print("B")
                 ret["offline_plugin_name"] = exception.plugin_name
         await self.send(identity, ret)
-
 
     async def send_api_call(self, identity, request_id, api_func_name, args, kwargs):
         ret = {"HEAD": HeaderFlags.API_CALL, "api_func_name": api_func_name, "args": args, "kwargs": kwargs,
                "request_id": request_id}
         await self.send(identity, ret)
 
-    async def call_remote_function(self, plugin_entry, api_obj, args=None, kwargs=None,  one_way=False,
+    async def call_remote_function(self, plugin_entry, api_obj, args=None, kwargs=None, one_way=False,
                                    return_time_estimate=False):
 
         if args is None:
@@ -150,13 +167,7 @@ class NetworkAdapter:
         # time estimate is always awaited
         # need to check whether this makes sense or if call without acknowledgement is possible
         answer = await utils.event_wait(event, 3)  # event.wait()
-        # print("----")
-        # print(api_obj.__dict__)
-        # print(api_obj.is_remote)
         if not answer:
-            print("\n\n")
-            print("NO ANSWER")
-            print(plugin_entry["plugin_name"])
             _memory.plugins[plugin_entry["plugin_name"]]["is_alive"] = False
 
             del self.api_objs[request_id]
@@ -164,8 +175,9 @@ class NetworkAdapter:
             #     api_obj.network_adapter.send_exception(api_obj.identity, request_id, Exception("Plugin offline"))
             #     # await self.send_exception(api_obj.remote_id, request_id, Exception("Plugin offline"))
             # else:
-            raise RemoteTimeoutException(f"No acknowledgement for function call. Plugin '{plugin_entry['plugin_name']}' offline?",
-                                         plugin_name=plugin_entry["plugin_name"])
+            raise RemoteTimeoutException(
+                f"No acknowledgement for function call. Plugin '{plugin_entry['plugin_name']}' offline?",
+                plugin_name=plugin_entry["plugin_name"])
         time_estimate = self.time_estimate[request_id]
         del self.time_estimate[request_id]
         del self.time_estimate_events[request_id]
@@ -177,10 +189,21 @@ class NetworkAdapter:
         return future
 
     async def listen(self):
+        from pprint import pp
+        auth_dict = {}
+        for file in os.listdir("auth_keys"):
+            if file.endswith(".key_secret"):
+                public, secret = zmq.auth.load_certificate("auth_keys/" + file)
+                auth_dict[public] = file
+
+        # certs = zmq.auth.load_certificates("auth_keys")
+        # pp(certs)
+
         while True:
+
             if self.is_server:
                 identity, message = await self.con.recv_multipart()
-                # network_log.debug(f"Received something from {identity.hex()}")
+                auth_dict[self.last_accepted_key]
             else:
                 message = await self.con.recv()
                 identity = self
@@ -344,28 +367,60 @@ class NetworkAdapter:
             del self.api_objs[request_id]
 
 
+class CredentialsProvider(object):
+
+    def __init__(self):
+        pass
+
+    def callback(self, domain, key):
+        print(domain, key)
+        return True
+
+
 class PluginServer(NetworkAdapter):
+
+    def callback(self, domain, key):
+        self.last_accepted_key = key
+        return True
+
 
     def __init__(self, port, address=None, use_curve=True, manually_created=True):
         # TODO implement curve via https://gist.github.com/mivade/97c2dc353a1bb460a1d44010df66e6d7
-        super().__init__(port, use_curve, manually_created=manually_created)
+        if not address:
+            address = f"tcp://*:{port}"
+        super().__init__(port, use_curve, manually_created=manually_created, address=address)
 
         network_log.debug("Starting server")
         self.con = _memory.zmq_context.socket(zmq.ROUTER)
         _memory.listener_socket = self.con
         self.error_count = 0
         self.is_server = True
+        self.last_accepted_key = None
 
-        if not address:
-            address = f"tcp://*:{port}"
+        if use_curve:
+            auth = AsyncioAuthenticator(_memory.zmq_context)
+            auth.start()
+            auth.allow()
+            auth.configure_curve(domain='*', location=settings.AUTH_KEY_LOC)
+            server_secret_file = os.path.join(settings.AUTH_KEY_LOC, "server.key_secret")
+            server_public, server_secret = zmq.auth.load_certificate(server_secret_file)
+            self.con.curve_secretkey = server_secret
+            self.con.curve_publickey = server_public
+            self.con.curve_server = True
+            self.auth = auth
+            auth.configure_curve_callback("*", self)
+
         self.con.bind(address)
         network_log.info(f"Server started at {address}")
         self.first_connection = asyncio.Event()
         utils.make_discoverable(_memory.ID, "localhost", port, list(_memory.plugins.keys()))
 
 
-async def create_and_start_plugin_client(server_address, port=2809, raise_on_connection_failure=True, return_future=False):
-    client = PluginClient(server_address, port, manually_created=False)
+async def create_and_start_plugin_client(server_address, port=2809, raise_on_connection_failure=True,
+                                         return_future=False, use_auth=False):
+    client = PluginClient(server_address, port, manually_created=False, use_auth=use_auth)
+
+
     try:
         client.con.connect(client.full_address)
 
@@ -410,12 +465,28 @@ async def create_and_start_plugin_client(server_address, port=2809, raise_on_con
         asyncio.create_task(supervise_future(future))
         return client
 
+
 class PluginClient(NetworkAdapter):
 
-    def __init__(self, server_address, port, protocoll="tcp://", use_curve=True, manually_created=True):
-        super().__init__(port, use_curve, manually_created=manually_created)
+    def __init__(self, server_address, port, protocoll="tcp://", use_auth=True, manually_created=True):
+        super().__init__(port, use_auth, manually_created=manually_created)
         self.full_address = f"{protocoll}{server_address}:{port}"
         self.con = _memory.add_client_connection(zmq.DEALER)
+        if use_auth:
+            auth = AsyncioAuthenticator(_memory.zmq_context)
+            auth.start()
+            auth.allow('127.0.0.1')
+            auth.configure_curve(domain='*', location=settings.AUTH_KEY_LOC)
+            client_secret_file = os.path.join(settings.AUTH_KEY_LOC, "client.key_secret")
+            client_public, client_secret = zmq.auth.load_certificate(client_secret_file)
+            self.con.curve_secretkey = client_secret
+            self.con.curve_publickey = client_public
+            server_public_file = os.path.join(settings.AUTH_KEY_LOC, "server.key")
+            server_public, _ = zmq.auth.load_certificate(server_public_file)
+            self.con.curve_serverkey = server_public
+
+
+
         self.is_server = False
 
     def __del__(self):

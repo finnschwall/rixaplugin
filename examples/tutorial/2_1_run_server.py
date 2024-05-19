@@ -18,7 +18,7 @@ async def async_main():
     # We can now look if all functions have been loaded correctly
     print(get_functions_info())
 
-    server, server_future = await create_and_start_plugin_server(port=7000, allow_any_connection=True)
+    server, server_future = await create_and_start_plugin_server(port=7000, use_auth=True)
     # Time to start the plugin server. Again you could skip all of this using the CLI but it is more flexible this way
     # The server object is usually just for debugging of the networking system.
 

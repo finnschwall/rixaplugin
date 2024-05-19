@@ -53,7 +53,12 @@ except KeyError:
 #
 #
 # WORKING_DIRECTORY = os.path.abspath(config_dir)
+DEFAULT_PLUGIN_SERVER_PORT = 15000
 
+USE_AUTH_SYSTEM = config("USE_AUTH_SYSTEM", default=True, cast=bool)
+AUTH_KEY_LOC = config("AUTH_KEY_LOC", default=None)
+if not AUTH_KEY_LOC:
+    AUTH_KEY_LOC = os.path.join(config_dir, "auth_keys")
 
 DEBUG = config("DEBUG", default=True, cast=bool)
 
@@ -134,6 +139,8 @@ GLOBAL_LOG_LEVEL = config("GLOBAL_LOG_LEVEL", default="INFO")
 RIXA_LOG_LEVEL = config("RIXA_LOG_LEVEL", default="DEBUG")
 
 USE_RIXA_LOGGING = config("USE_RIXA_LOGGING", default=True, cast=bool)
+
+
 
 if USE_RIXA_LOGGING:
     logging.setLoggerClass(_RIXALogger)

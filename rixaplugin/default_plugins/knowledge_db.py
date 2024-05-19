@@ -1,3 +1,4 @@
+import os.path
 import pickle
 
 from rixaplugin.decorators import plugfunc, worker_init
@@ -14,6 +15,8 @@ knowledge_logger = logging.getLogger("rixa.knowledge_db")
 
 model_name = rixaplugin.variables.PluginVariable("model_name", str, default="Snowflake/snowflake-arctic-embed-m-long")
 embedding_df_loc = rixaplugin.variables.PluginVariable("embedding_df_loc", str, default="")
+
+chat_store_loc = rixaplugin.variables.PluginVariable("chat_store_loc", str, default=None)
 
 settings.DEFAULT_MAX_WORKERS = 1
 settings.ACCEPT_REMOTE_PLUGINS = 0
@@ -37,13 +40,12 @@ def worker_init():
     ctx.model.eval()
 
 
-def _query_db(query, top_k=5, min_score=0.5, query_tags=None, max_chars=4000):
+def _query_db(query, top_k=5, min_score=0.5, query_tags=None, max_chars=4000, username=None):
     df = ctx.embeddings_db
     query_prefix = 'Represent this sentence for searching relevant passages: '
     queries = [query]
     queries_with_prefix = [f"{query_prefix}{i}" for i in queries]
-    query_tokens = ctx.tokenizer(queries_with_prefix, padding=True, truncation=True, return_tensors='pt',
-                                 max_length=512)
+    query_tokens = ctx.tokenizer(queries_with_prefix, padding=True, truncation=True, return_tensors='pt', max_length=512)
     query_tokens.to(ctx.device)
     with torch.no_grad():
         query_embeddings = ctx.model(**query_tokens)[0][:, 0]
@@ -57,14 +59,23 @@ def _query_db(query, top_k=5, min_score=0.5, query_tags=None, max_chars=4000):
     idx = list(filtered_df.index)
     filtered_embeddings = ctx.embeddings_list[idx]
     scores = np.dot(query_embeddings, filtered_embeddings.T).flatten()
+
     idx = np.argsort(scores)[-top_k:][::-1]
     ret_idx = np.where(scores[idx] > min_score)
 
     final_docs = filtered_df.iloc[idx].iloc[ret_idx]
+
+    if username and chat_store_loc.get():
+        with open(os.path.join(chat_store_loc.get(), f"{username}.txt"), "a") as f:
+            f.write(f"QUERY: {query}\n")
+            f.write(f"TOP SCORES: {sorted(scores)[:-5:-1]}\n")
+            f.write(f"TOP DOCS: {final_docs}\n")
     final_scores = scores[idx][ret_idx]
 
+    final_docs = final_docs.reset_index().rename(columns={'index': 'index'})
     final_results = pd.merge(final_docs, ctx.doc_metadata_db.drop("tags", axis=1), on="doc_id")
     final_results.drop(["creation_time", "source_file"], inplace=True, axis=1)
+    # return final_results, final_scores
 
     if max_chars == 0 or max_chars == -1 or max_chars is None:
         return final_results, final_scores
@@ -73,6 +84,7 @@ def _query_db(query, top_k=5, min_score=0.5, query_tags=None, max_chars=4000):
         cumsum = np.cumsum(char_count)
         idx = np.where(cumsum < max_chars)
         return final_results.iloc[idx], final_scores[idx]
+
 
 
 @plugfunc()
@@ -86,9 +98,9 @@ def query_db_as_string(query, top_k=3, query_tags=None, min_score=0.5, max_chars
 
 
 @plugfunc()
-def query_db(query, top_k=5, min_score=0.5, query_tags=None, max_chars=4000):
-    filtered_df, scores = _query_db(query, top_k, min_score,  query_tags,max_chars)
-    # ret_df = filtered_df.drop("embedding", axis=1).reset_index()
-    ret_df = filtered_df.reset_index()
+def query_db(query, top_k=5, min_score=0.5, query_tags=None, max_chars=4000, username=None):
+    filtered_df, scores = _query_db(query, top_k, min_score,  query_tags,max_chars, username)
+    ret_df = filtered_df
     ret_df['tags'] = ret_df['tags'].apply(list)
-    return ret_df.to_dict(orient='records'), scores
+    ret_df = ret_df.to_dict(orient='records')
+    return ret_df, scores

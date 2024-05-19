@@ -35,6 +35,8 @@ def get_function_entry(name, plugin_name=None):
         return filtered_entries[0]
 
 
+
+
 class PluginMemory:
     """Singleton class to store plugin information.
 
@@ -70,6 +72,8 @@ class PluginMemory:
         self.debug_mode = settings.DEBUG
         self.server = None
         self.main_thread_id = threading.get_ident()
+
+        self.tasks_in_system = 0
 
         self.connected_clients = []
 
@@ -153,26 +157,10 @@ class PluginMemory:
             core_log.debug("Received new plugins: " + ", ".join(new_names))
         self.plugins = {**self.plugins, **plugin_dict}
 
-
-
-
-
-    def add_remote_functions(self, func_list, plugin_id, origin_is_client=False):
-        # DEPRECATED. Use add_plugin instead
-        fn_type = FunctionPointerType.REMOTE
-        if origin_is_client:
-            fn_type |= FunctionPointerType.CLIENT
-        else:
-            fn_type |= FunctionPointerType.SERVER
-        for i in func_list:
-            i["type"] = fn_type
-            i["pointer"] = plugin_id
-            self.add_function(i, plugin_id, fn_type)
-        #     self.function_list.append(i)
-        #     remote_func_list.append(i)
-        # remote_plugin = {"name": remote_name, "functions": remote_func_list, "id": plugin_id, "type": fn_type,
-        #                  "is_alive": True, "active_tasks": 0}
-        # self.plugins[remote_name] = remote_plugin
+    def delete_plugin(self, name):
+        if name in self.plugins:
+            del self.plugins[name]
+            self.function_list = [i for i in self.function_list if i["plugin_name"] != name]
 
     def force_shutdown(self):
         core_log.error("Force shutdown of plugin system! This should not happen!")
@@ -316,6 +304,9 @@ class PluginMemory:
                 for i in self._client_connections:
                     i.close()
                 if self.zmq_context:
+                    if self.server:
+                        if self.server.use_curve:
+                            self.server.auth.stop()
                     self.zmq_context.term()
             except:
                 pass
@@ -326,5 +317,10 @@ class PluginMemory:
         PluginMemory._instance = None
         PluginMemory()
 
-
 _memory = PluginMemory()
+
+
+
+
+
+

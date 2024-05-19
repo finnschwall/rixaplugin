@@ -40,13 +40,14 @@ device = None
 embeddings_db = None
 embeddings_list = None
 doc_metadata_db=None
+current_doc_id = 0
 
 def init():
     global embeddings_db
     global model
     global tokenizer
     global device
-    global embeddings_list, doc_metadata_db
+    global embeddings_list, doc_metadata_db, current_doc_id
 
     tokenizer = AutoTokenizer.from_pretrained('Snowflake/snowflake-arctic-embed-m-long')
     model = AutoModel.from_pretrained('Snowflake/snowflake-arctic-embed-m-long', trust_remote_code=True,
@@ -66,12 +67,14 @@ def init():
         doc_metadata_db = pd.read_pickle("doc_metadata_df.pkl")
         with open("embeddings.pkl", "rb") as f:
             embeddings_list = pickle.load(f)
+        current_doc_id = doc_metadata_db["doc_id"].max()
     else:
         reset_db()
 
 
 def reset_db():
-    global embeddings_db, embeddings_list, doc_metadata_db
+    global embeddings_db, embeddings_list, doc_metadata_db, current_doc_id
+    current_doc_id = 0
     embeddings_db = pd.DataFrame(columns=["doc_id", "header", "subheader", "location", "url", "tags", "content", ])
     embeddings_list = None
     doc_metadata_db = pd.DataFrame(
@@ -125,12 +128,14 @@ def query_db(query, top_k=5, min_score=0.5, query_tags=None, max_chars=3500):
 
 
 def from_json(path):
-    global doc_metadata_db, embeddings_db, embeddings_list
+    global doc_metadata_db, embeddings_db, embeddings_list, current_doc_id
     with open(path, "r") as f:
         data = json.load(f)
 
     metadata = data[0]
-    doc_id = metadata.get("doc_id", len(doc_metadata_db) + 1)  # Generate or use existing doc_id
+    current_doc_id += 1
+    doc_id = current_doc_id
+
     mod_time = os.path.getmtime(path)
     metadata_entry = {"doc_id": doc_id,
                       "document_title": metadata["title"] if "title" in metadata else metadata["document_title"],
@@ -145,8 +150,8 @@ def from_json(path):
     for entry in data[1:]:
         content_entries.append({"doc_id": doc_id, "content": entry["content"], "tags": metadata["tags"],
                                 "header": entry["header"] if "header" in entry else None,
-                                "subheader": entry["subheader"] if "subheader" in entry else None,
-                                "location": f'Page {entry["page"]}' if "page" in entry else None})
+                                "subheader": entry["subheader"] if "subheader" in entry else "",
+                                "location": f'Page {entry["page"]}' if "page" in entry else ""})
 
     add_entry(metadata_entry, content_entries)
 
@@ -199,9 +204,11 @@ def calculate_embeddings(df):
 
 
 def add_wiki(path_to_xml, tags, name):
-    global doc_metadata_db
-    entities = get_entities_from_wiki_xml(path_to_xml, tags)
-    doc_id = len(doc_metadata_db)
+    global doc_metadata_db, current_doc_id
+    current_doc_id += 1
+    doc_id = current_doc_id
+    entities = get_entities_from_wiki_xml(path_to_xml, tags, doc_id)
+
     doc_metadata = {"doc_id": doc_id, "authors":None, "publisher": "Wikipedia", "tags": tags, "source": "wikipedia.org",
 "creation_time": datetime.datetime.now().strftime('%H:%M %d/%m/%Y'),
                     "source_file": os.path.basename(path_to_xml), "document_title": name}
@@ -253,7 +260,7 @@ def urls_to_entities(links):
     return entities
 
 
-def get_entities_from_wiki_xml(path, tags):
+def get_entities_from_wiki_xml(path, tags, doc_id):
     tree = ET.parse(path)
     root = tree.getroot()
     entities = []
@@ -312,7 +319,7 @@ def get_entities_from_wiki_xml(path, tags):
             text = re.sub(r"\'\'(.*?)\'\'", r"'\1'", text)
             entity = {"header": title, "content": i + ":\n" + text,
                       "url": f"https://en.wikipedia.org/?curid={id}#" + "_".join(i.split(" ")),
-                      "subheader": i, "tags":tags}
+                      "subheader": i, "tags":tags, "doc_id": doc_id}
             entities.append(entity)
             # sections[i] = text
     return entities

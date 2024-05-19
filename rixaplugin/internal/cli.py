@@ -11,23 +11,40 @@ import asyncio
 def main():
     pass
 
-async def run_server(port, address, debug):
+
+@main.command(help="Generate keypair for authentication system. Keys are stored in the working directory.")
+@click.argument("name", required=False)
+def generate_auth_keys(name= None):
+    from rixaplugin.internal import networking
+    import os
+    if name:
+        networking.create_keys(name)
+    else:
+        networking.create_keys(server_keys=True)
+    keys_folder = os.path.join(networking.settings.config_dir, 'auth_keys')
+    print("Keys have been generated in: ", keys_folder)
+
+
+async def run_server(debug):
     from rixaplugin import init_plugin_system, create_and_start_plugin_server
     from rixaplugin import PluginModeFlags as PMF
-    init_plugin_system(PMF.SERVER | PMF.LOCAL | PMF.THREAD, debug=debug)
-    server, future = await create_and_start_plugin_server(port=port, allow_any_connection=debug)
+    import rixaplugin
+    init_plugin_system(PMF.LOCAL | PMF.THREAD, debug=debug)
+    server, future = await create_and_start_plugin_server(rixaplugin.settings.DEFAULT_PLUGIN_SERVER_PORT, )
     await future
 
 
-@main.command()
+@main.command(help="Start a plugin server from a python file")
 @click.argument("path", type=click.Path(exists=True))
-@click.option("--port", default=15000, help="Port to start server on")
+@click.option("--port", help="Port to start server on")
 @click.option("--debug", default=False, help="Activate debug mode")
 @click.option("--address", default="localhost", help="Listen address of server")
-def start_as_server(path, port, debug, address):
-    # first try to determine what we will import later
-    python_file = None
+def start_server(path, port=None, debug=None, address=None):
+    if port:
+        os.environ["DEFAULT_PLUGIN_SERVER_PORT"] = str(port)
+    os.environ["DEBUG"] = str(debug)
 
+    python_file = None
     if os.path.isdir(path):
         print("Not yet implemented.")
         return
@@ -42,25 +59,23 @@ def start_as_server(path, port, debug, address):
             raise ValueError("Unknown file type.")
     else:
         raise FileNotFoundError("File or directory not found.")
-    # we need the filename
+
     filename = os.path.basename(python_file)
     plugin_spec = importlib.util.spec_from_file_location(filename, python_file)
     module = importlib.util.module_from_spec(plugin_spec)
     plugin_spec.loader.exec_module(module)
     if debug:
         print(f"Following functions have been found in {python_file}: {module.__dict__}")
-    asyncio.run(run_server(port, address, debug))
+    asyncio.run(run_server(address))
 
 
-
-
-@main.command()
+@main.command(help="Connect specified plugin to a server")
 @click.option("--path", default=".", help="Path to main config, python file or directory")
 @click.option("--address", default="localhost", help="Address of server")
 @click.option("--port", default=15000, help="Port of server")
 @click.option("--debug", default=False, help="Activate debug mode")
-def start_as_client(path, address, port, debug):
-    pass
+def start_client(path, address, port, debug):
+    raise Exception("?")
 
 
 @main.command(help="Retrieve all available functions from a server via quick connection")
