@@ -3,6 +3,7 @@ import pickle
 
 import msgpack
 import msgpack_numpy
+from zmq.auth import Authenticator
 from zmq.auth.asyncio import AsyncioAuthenticator
 
 import rixaplugin.internal.rixalogger
@@ -33,7 +34,7 @@ network_log = logging.getLogger("rixa.plugin_net")
 
 
 def create_keys(name=None, metadata=None, server_keys=False):
-    keys_dir = os.path.join(settings.config_dir, 'auth_keys')
+    keys_dir = settings.AUTH_KEY_LOC
     for d in [keys_dir]:
         if not os.path.exists(d):
             os.mkdir(d)
@@ -150,9 +151,11 @@ class NetworkAdapter:
             "request_id": request_id,
             "func_name": plugin_entry["name"],
             "plugin_name": plugin_entry["plugin_name"],
+            "plugin_id": plugin_entry["id"],
             "oneway": one_way,
             "args": args,
-            "kwargs": kwargs
+            "kwargs": kwargs,
+            "scope" : api_obj.scope
         }
 
         event = asyncio.Event()
@@ -189,21 +192,11 @@ class NetworkAdapter:
         return future
 
     async def listen(self):
-        from pprint import pp
-        auth_dict = {}
-        for file in os.listdir("auth_keys"):
-            if file.endswith(".key_secret"):
-                public, secret = zmq.auth.load_certificate("auth_keys/" + file)
-                auth_dict[public] = file
-
-        # certs = zmq.auth.load_certificates("auth_keys")
-        # pp(certs)
 
         while True:
 
             if self.is_server:
-                identity, message = await self.con.recv_multipart()
-                auth_dict[self.last_accepted_key]
+                identity, message = await self.con.recv_multipart(copy=True)
             else:
                 message = await self.con.recv()
                 identity = self
@@ -240,7 +233,7 @@ class NetworkAdapter:
 
 
             except Exception as e:
-                network_log.exception(f"Network error:\n{e}")
+                # network_log.exception(f"Network error:\n{e}")
                 raise e
                 self.error_count += 1
                 if self.error_count > 10 and not _memory.debug_mode:
@@ -260,24 +253,31 @@ class NetworkAdapter:
         if header_flags & HeaderFlags.ACKNOWLEDGE:
             network_log.debug(f"Acknowledging connection")
             ret = {"HEAD": HeaderFlags.ACKNOWLEDGE | HeaderFlags.SERVER, "ID": _memory.ID}
-
+            updated = None
             if "request_info" in msg and msg["request_info"] == "plugin_signatures":
                 if "plugin_signatures" in msg:
-                    ret["plugin_signatures"] = _memory.get_sendable_plugins(skip=msg["plugin_signatures"].values())
+                    ret["plugin_signatures"] = _memory.get_sendable_plugins(skip=msg["plugin_signatures"].keys())
                 else:
                     ret["plugin_signatures"] = _memory.get_sendable_plugins()
 
             if "plugin_signatures" in msg:
-                _memory.add_plugin(msg["plugin_signatures"], identity, self, origin_is_client=True)
+                if self.use_curve and self.is_server:
+                    tag = self.auth_dict[self.last_accepted_key]
+                    updated = _memory.add_plugin(msg["plugin_signatures"], identity, self, origin_is_client=True, tags=[tag])
+                else:
+                    updated = _memory.add_plugin(msg["plugin_signatures"], identity, self, origin_is_client=True)
             await self.send(identity, ret)
             self.first_connection.set()
+            if updated:
+                _memory.connected_clients.remove(updated)
+
 
             if settings.ALLOW_NETWORK_RELAY:
-                # need to propagate new plugins to connected clients
                 for client in _memory.connected_clients:
-                    ret = {"HEAD": HeaderFlags.UPDATE_REMOTE_PLUGINS | HeaderFlags.SERVER, "ID": _memory.ID,
-                           "plugin_signatures": _memory.get_sendable_plugins()}
-                    await self.send(client, ret)
+                    if client != updated:
+                        ret = {"HEAD": HeaderFlags.UPDATE_REMOTE_PLUGINS | HeaderFlags.SERVER, "ID": _memory.ID,
+                               "plugin_signatures": _memory.get_sendable_plugins()}
+                        await self.send(client, ret)
 
             _memory.connected_clients.append(identity)
         elif header_flags & HeaderFlags.UPDATE_REMOTE_PLUGINS:
@@ -288,8 +288,8 @@ class NetworkAdapter:
         elif header_flags & HeaderFlags.FUNCTION_CALL:
             try:
                 asyncio.create_task(execute_networked(
-                    msg["func_name"], msg["plugin_name"], msg["args"], msg["kwargs"], msg["oneway"],
-                    msg["request_id"], identity, self))
+                    msg["func_name"], msg["plugin_name"], msg["plugin_id"], msg["args"], msg["kwargs"], msg["oneway"],
+                    msg["request_id"], identity, self, msg["scope"]))
                 ret = {"HEAD": HeaderFlags.TIME_ESTIMATE_AND_ACKNOWLEDGEMENT, "request_id": msg["request_id"]}
                 await self.send(identity, ret)
             except FunctionNotFoundException as e:
@@ -306,7 +306,10 @@ class NetworkAdapter:
             args = msg.get("args")
             kwargs = msg.get("kwargs")
             api_callable = getattr(api_obj, api_func_name)
-            await api_callable(*args, **kwargs)
+            if api_obj.is_remote:
+                await api_callable(args, kwargs)
+            else:
+                await api_callable(*args, **kwargs)
 
         elif header_flags & HeaderFlags.FUNCTION_RETURN:
             request_id = msg.get("request_id")
@@ -409,6 +412,12 @@ class PluginServer(NetworkAdapter):
             self.con.curve_server = True
             self.auth = auth
             auth.configure_curve_callback("*", self)
+            auth_dict = {}
+            for file in os.listdir(settings.AUTH_KEY_LOC):
+                if file.endswith(".key"):
+                    public, secret = zmq.auth.load_certificate(os.path.join(settings.AUTH_KEY_LOC, file))
+                    auth_dict[public] = file.split(".")[0]
+            self.auth_dict = auth_dict
 
         self.con.bind(address)
         network_log.info(f"Server started at {address}")
@@ -423,7 +432,6 @@ async def create_and_start_plugin_client(server_address, port=2809, raise_on_con
 
     try:
         client.con.connect(client.full_address)
-
         packed_msg = msgpack.packb(
             {"HEAD": HeaderFlags.ACKNOWLEDGE | HeaderFlags.CLIENT, "request_info": "plugin_signatures",
              "plugin_signatures": _memory.get_sendable_plugins(), "ID": _memory.ID, })

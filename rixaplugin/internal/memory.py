@@ -17,7 +17,7 @@ from rixaplugin import settings
 from rixaplugin.internal import utils
 
 
-def get_function_entry(name, plugin_name=None):
+def get_function_entry_by_name(name, plugin_name=None):
     if not plugin_name:
         filtered_entries = [d for d in _memory.function_list if d.get("name") == name]
         if len(filtered_entries) > 1:
@@ -26,7 +26,8 @@ def get_function_entry(name, plugin_name=None):
             raise FunctionNotFoundException(name)
         return filtered_entries[0]
     else:
-        plugin_entry = _memory.plugins.get(plugin_name, None)
+        plugin_id = get_plugin_id(plugin_name)
+        plugin_entry = _memory.plugins.get(plugin_id, None)
         if not plugin_entry:
             raise PluginNotFoundException(plugin_name)
         filtered_entries = [d for d in plugin_entry["functions"] if d.get("name") == name]
@@ -34,8 +35,22 @@ def get_function_entry(name, plugin_name=None):
             raise FunctionNotFoundException(f"Plugin '{plugin_name}' found, but not function: '{name}'")
         return filtered_entries[0]
 
+def get_function_entry(function_name, plugin_id):
+    plugin = _memory.plugins.get(plugin_id)
+    if not plugin:
+        raise PluginNotFoundException(plugin_id)
+    for i in plugin["functions"]:
+        if i["name"] == function_name:
+            return i
+    raise FunctionNotFoundException(function_name)
 
-
+def get_plugin_id(plugin_name):
+    plugin_id = None
+    for i in _memory.plugins.values():
+        if i["name"] == plugin_name:
+            plugin_id = i["id"]
+            break
+    return plugin_id
 
 class PluginMemory:
     """Singleton class to store plugin information.
@@ -77,8 +92,8 @@ class PluginMemory:
 
         self.connected_clients = []
 
-        id_str = os.path.abspath(__file__) + str(sys.implementation) + str(sys.prefix)
-        hash_object = hashlib.sha256(id_str.encode())
+        self.hash_base_str = str(sys.implementation) + str(sys.prefix)+ os.path.abspath(__file__)
+        hash_object = hashlib.sha256(self.hash_base_str.encode())
         hex_dig = hash_object.hexdigest()
         self.ID = hex_dig[:16]
 
@@ -91,15 +106,21 @@ class PluginMemory:
         if not id:
             id = self.ID
         self.function_list.append(signature_dict)
-        if signature_dict["plugin_name"] in self.plugins:
-            self.plugins[signature_dict["plugin_name"]]["functions"].append(signature_dict)
+        plugin_id = get_plugin_id(signature_dict["plugin_name"])
+        if plugin_id:
+            signature_dict["plugin_id"] = plugin_id
+            self.plugins[signature_dict["plugin_id"]]["functions"].append(signature_dict)
         else:
             # create a plugin entry
-            plugin = {"name": signature_dict["plugin_name"], "functions": [signature_dict], "id": id,
+            hash_str = self.hash_base_str + signature_dict["plugin_name"]
+            hash_object = hashlib.sha256(hash_str.encode())
+            plugin_id = hash_object.hexdigest()[:16]
+            signature_dict["plugin_id"] = id
+            plugin = {"name": signature_dict["plugin_name"], "functions": [signature_dict], "id": plugin_id, "tags":[],
                       "type": fn_type, "is_alive": True, "active_tasks": 0}
-            self.plugins[signature_dict["plugin_name"]] = plugin
+            self.plugins[plugin_id] = plugin
 
-    def add_plugin(self, plugin_dict, identity, remote_origin, origin_is_client=False):
+    def add_plugin(self, plugin_dict, identity, remote_origin, origin_is_client=False, tags = None):
         if not self.allow_remote_functions:
             return
         local_plugin_names = [i["name"] for i in self.plugins.values() if i["type"] & FunctionPointerType.LOCAL]
@@ -107,27 +128,32 @@ class PluginMemory:
         # add functions to function list
         new_names = []
         to_pop = []
+        updated_remote_id = None
         for i in plugin_dict.values():
             if i["name"] in local_plugin_names:
                 core_log.warning(f"Plugin '{i['name']}' already exists locally. Skipping...")
                 to_pop.append(i["name"])
                 continue
-            if i["name"] in self.plugins:
+            if i["id"] in self.plugins:
                 # print(i["name"])
                 # print(self.plugins[i["name"]]["id"].decode())
                 # print(i["id"])
-                if self.plugins[i["name"]]["id"] == i["id"]:
-                    core_log.debug(f"Plugin '{i['name']}' updated")
-                else:
-                    to_pop.append(i["name"])
-                    core_log.error(f"Plugin '{i['name']}' already exists with different ID. Skipping...")
-                    continue
-                del self.plugins[i["name"]]
+                core_log.debug(f"Plugin '{i['name']}' updated")
+                updated_remote_id = self.plugins[i["id"]]["remote_id"]
+                # if self.plugins[i["id"]]["id"] == i["id"]:
+                #     core_log.debug(f"Plugin '{i['name']}' updated")
+                # else:
+                #     to_pop.append(i["name"])
+                #     core_log.error(f"Plugin '{i['name']}' already exists with different ID. Skipping...")
+                #     continue
+                del self.plugins[i["id"]]
                 self.function_list = [j for j in self.function_list if j["plugin_name"] != i["name"]]
             new_names.append(i["name"])
             i["id"] = i["id"] #identity
             i["remote_id"] = identity
             i["remote_origin"] = remote_origin
+            if tags:
+                i["tags"] = tags
             if origin_is_client:
                 i["type"] |= FunctionPointerType.CLIENT
             else:
@@ -137,6 +163,8 @@ class PluginMemory:
                 j["id"] = i["id"]#identity
                 j["remote_id"] = identity
                 j["remote_origin"] = remote_origin
+                if tags:
+                    j["tags"] = tags
                 self.function_list.append(j)
             # remote_plugin_to_module(i)
 
@@ -156,11 +184,13 @@ class PluginMemory:
         if new_names:
             core_log.debug("Received new plugins: " + ", ".join(new_names))
         self.plugins = {**self.plugins, **plugin_dict}
+        return updated_remote_id
 
     def delete_plugin(self, name):
         if name in self.plugins:
-            del self.plugins[name]
-            self.function_list = [i for i in self.function_list if i["plugin_name"] != name]
+            plugin_id = get_plugin_id(name)
+            del self.plugins[plugin_id]
+            self.function_list = [i for i in self.function_list if i["plugin_id"] != plugin_id]
 
     def force_shutdown(self):
         core_log.error("Force shutdown of plugin system! This should not happen!")
@@ -188,6 +218,21 @@ class PluginMemory:
                 return i
         return None
 
+    def find_plugin_by_name(self, plugin_name):
+        for i in self.plugins.values():
+            if i.get("name") == plugin_name:
+                return i
+        return None
+
+    def apply_tags_plugin(self, plugin_name, tags):
+        plugin = self.find_plugin_by_name(plugin_name)
+        if plugin:
+            plugin["tags"] = tags
+            for function in plugin["functions"]:
+                function["tags"] = tags
+        else:
+            core_log.error(f"Plugin '{plugin_name}' not found")
+
     def __repr__(self):
         return f"{self.__class__.__name__}({self.function_list!r})"
 
@@ -199,6 +244,12 @@ class PluginMemory:
         readable_str += f"{_memory.executor.get_queued_task_count()} tasks additional tasks queued\n" if self.executor else ""
         # readable_str += "Max queue size: " + str(self.max_queue) + "\n" if self.executor else ""
         readable_str += "\nPlugins:\n" + self.pretty_print_plugins()
+        return readable_str
+
+    def pretty_print_filtered_plugins(self, scope):
+        readable_str = "Plugin info:\n---------\n"
+        for entry in self.get_plugins(scope):
+            readable_str += self._pretty_print_plugin(entry)
         return readable_str
 
     def pretty_print_plugins(self):
@@ -217,7 +268,8 @@ class PluginMemory:
 
     def pretty_print_plugin(self, plugin_name):
         readable_str = ""
-        entry = self.plugins.get(plugin_name)
+        plugin_id = get_plugin_id(plugin_name)
+        entry = self.plugins.get(plugin_id)
         if not entry:
             return "Plugin not found"
         readable_str += self._pretty_print_plugin(entry)
@@ -267,26 +319,55 @@ class PluginMemory:
 
         return sendable_dict
 
-    def get_functions(self, excluded_functions = None, excluded_plugins = None, short=False,
-                      inclusive_tags = None, exclusive_tags = None):
-        func_str = ""
-        #        for i in entry["functions"]:
-        #    readable_str += f"\t{generate_python_doc(i, include_docstr=False)}\n"
+    def get_functions(self, scope):
+        return_funcs = []
         for key, val in self.plugins.items():
-            if excluded_plugins and key in excluded_plugins:
+            if "excluded_plugins" in scope and val["name"] in scope["excluded_plugins"]:
+                continue
+            if "included_plugins" in scope and val["name"] not in scope["included_plugins"]:
                 continue
             if val["is_alive"] is False:
                 continue
             for j in val["functions"]:
-                if excluded_functions and j["name"] in excluded_functions:
+                if "excluded_functions" in scope and j["name"] in scope["excluded_functions"]:
                     continue
-                if inclusive_tags:
-                    if not j.get("tags") or not any([i in j["tags"] for i in inclusive_tags]):
+                if "inclusive_tags" in scope:
+                    if not j.get("tags") or not any([i in j["tags"] for i in scope["inclusive_tags"]]):
                         continue
-                if exclusive_tags:
-                    if j.get("tags") and any([i in j["tags"] for i in exclusive_tags]):
+                if "exclusive_tags" in scope:
+                    if j.get("tags") and any([i in j["tags"] for i in scope["exclusive_tags"]]):
                         continue
-                func_str += generate_python_doc(j, include_docstr=True, short=short) + "\n\n"
+                return_funcs.append(j)
+        if "force_include_plugin" in scope:
+            for key, val in self.plugins.items():
+                if val["name"] in scope["force_include_plugin"]:
+                    for j in val["functions"]:
+                        return_funcs.append(j)
+        return return_funcs
+
+    def get_plugins(self, scope):
+        return_plugins = []
+        for key, val in self.plugins.items():
+            if "inclusive_tags" in scope:
+                if not val.get("tags") or not any([i in val["tags"] for i in scope["inclusive_tags"]]):
+                    continue
+            if "exclusive_tags" in scope:
+                if val.get("tags") and any([i in val["tags"] for i in scope["exclusive_tags"]]):
+                    continue
+            if "excluded_plugins" in scope and val["name"] in scope["excluded_plugins"]:
+                continue
+            if "included_plugins" in scope and val["name"] not in scope["included_plugins"]:
+                continue
+            if val["is_alive"] is False:
+                continue
+            return_plugins.append(val)
+        return return_plugins
+
+    def get_functions_as_str(self, scope, short=False):
+        funcs = self.get_functions(scope)
+        func_str = ""
+        for j in funcs:
+            func_str += generate_python_doc(j, include_docstr=True, short=short) + "\n\n"
         return func_str
 
     def clean(self):

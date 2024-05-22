@@ -17,6 +17,10 @@ get_functions_info = _memory.get_functions
 worker_context = threading.local()
 
 
+def set_tags(plugin_name, tags):
+    _memory.apply_tags_plugin(plugin_name, tags)
+
+
 async def _execute_and_await(function_name, plugin_name, args, kwargs, api_obj, timeout):
     """
     Helper function for synchronous execution of functions in the plugin system.

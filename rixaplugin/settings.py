@@ -50,17 +50,31 @@ except KeyError:
         # raise Exception(
         #     f"The folder '{current_directory}' from which you started the server does not seem to be a RIXA working directory."
         #     f"Either change into a working dir or set the 'RIXA_WD' env var.")
-#
-#
-# WORKING_DIRECTORY = os.path.abspath(config_dir)
+WORKING_DIRECTORY = os.path.abspath(config_dir)
 DEFAULT_PLUGIN_SERVER_PORT = 15000
 
 USE_AUTH_SYSTEM = config("USE_AUTH_SYSTEM", default=True, cast=bool)
 AUTH_KEY_LOC = config("AUTH_KEY_LOC", default=None)
 if not AUTH_KEY_LOC:
-    AUTH_KEY_LOC = os.path.join(config_dir, "auth_keys")
+    AUTH_KEY_LOC = os.path.join(WORKING_DIRECTORY, "auth_keys")
+
 
 DEBUG = config("DEBUG", default=True, cast=bool)
+
+PLUGIN_DEFAULT_PORT = config("PLUGIN_SERVER_PORT", default=15000, cast=int)
+"""
+Port to which plugin system will bind to by default.
+Not used outside of RIXA webserver or CLI.
+"""
+PLUGIN_DEFAULT_ADDRESS = config("PLUGIN_CLIENT_ADDRESS", cast=str, default="localhost")
+"""
+Default to which plugin system will connect/listen to.
+Not used outside of RIXA webserver or CLI.
+"""
+
+
+
+
 
 LOG_REMOTE_EXCEPTIONS_LOCALLY = config("LOG_EXCEPTIONS_LOCALLY", default=True, cast=bool)
 """Log exceptions (that occurred locally) but are meant for remote plugins to the local log stream

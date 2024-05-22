@@ -14,6 +14,7 @@ from pyalm.openai import OpenAI
 from pyalm import ConversationTracker, ConversationRoles
 
 import logging
+from rixaplugin.internal import api
 
 llm_logger = logging.getLogger("rixa.openai_server")
 
@@ -44,8 +45,8 @@ def get_total_tokens():
 
 
 @plugfunc()
-def generate_text(conversation_tracker_yaml, enable_function_calling=True, excluded_plugins=None,
-                  excluded_functions=None, enable_knowledge_retrieval=True, knowledge_retrieval_domain=None, system_msg=None, username=None):
+def generate_text(conversation_tracker_yaml, enable_function_calling=True, enable_knowledge_retrieval=True,
+                  knowledge_retrieval_domain=None, system_msg=None, username=None):
     """
     Generate text based on the conversation tracker and available functions
 
@@ -55,11 +56,11 @@ def generate_text(conversation_tracker_yaml, enable_function_calling=True, exclu
     if username and chat_store_loc.get():
         with open(os.path.join(chat_store_loc.get(), f"{username}.txt"), "a") as f:
             f.write(f"\n\nNew message at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-
-    if excluded_functions is None:
-        excluded_functions = ["generate_text"]
-    if excluded_plugins is None:
-        excluded_plugins = ["openai_server", "knowledge_db"]
+    user_api = api.get_api()
+    if "excluded_functions" not in user_api.scope:
+        user_api.scope["excluded_functions"] = ["generate_text", "get_total_tokens"]
+    # if excluded_plugins is None:
+    #     excluded_plugins = ["openai_server", "knowledge_db"]
     llm = worker_context.llm
 
     tracker = ConversationTracker.from_yaml(conversation_tracker_yaml)
@@ -83,8 +84,7 @@ def generate_text(conversation_tracker_yaml, enable_function_calling=True, exclu
         llm.include_context_msg = False
 
     if enable_function_calling:
-        func_list = _memory.get_functions(excluded_functions=excluded_functions,
-                                          excluded_plugins=excluded_plugins, short=False)
+        func_list = _memory.get_functions_as_str(user_api.scope, short=False)
         llm.include_function_msg = True
     else:
         func_list = None

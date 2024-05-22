@@ -12,9 +12,45 @@ def main():
     pass
 
 
-@main.command(help="Generate keypair for authentication system. Keys are stored in the working directory.")
+@main.group(name="setup", help="Tools for setting up the plugin system.")
+def setup():
+    pass
+
+
+@setup.command()
+@click.argument("path", required=False)
+def setup_work_dir(path=None):
+    """
+    Create a working directory in the specified path.
+
+    Sets up all folders and files usually required for proper functioning of the plugin system.
+    Do not use this command if you already have a working directory set up.
+    :param path:
+    :return:
+    """
+    if not path:
+        path = os.getcwd()
+    if click.confirm(f"Setting up working directory in '{path}'"):
+        folders = ["auth_keys", "log"]
+        for folder in folders:
+            os.makedirs(os.path.join(path, folder), exist_ok=True)
+        config_str = """[EXAMPLE SETTINGS]
+DEBUG = True
+USE_AUTH_SYSTEM = False
+ALLOW_NETWORK_RELAY = False
+LOG_EXCEPTIONS_LOCALLY = True
+LOG_LEVEL=DEBUG"""
+        with open(os.path.join(path, "config.ini"), 'w') as f:
+            f.write(config_str)
+        from rixaplugin.internal import networking
+        # os.environ["RIXA_WD"] = path
+        # networking.create_keys(server_keys=True)
+        print("Working directory created in: ", path)
+
+
+@setup.command(help="Generate keypair for authentication system. Keys are stored in the working directory.")
 @click.argument("name", required=False)
-def generate_auth_keys(name= None):
+def generate_auth_keys(name=None):
     from rixaplugin.internal import networking
     import os
     if name:
@@ -29,8 +65,23 @@ async def run_server(debug):
     from rixaplugin import init_plugin_system, create_and_start_plugin_server
     from rixaplugin import PluginModeFlags as PMF
     import rixaplugin
+    from rixaplugin import settings
     init_plugin_system(PMF.LOCAL | PMF.THREAD, debug=debug)
-    server, future = await create_and_start_plugin_server(rixaplugin.settings.DEFAULT_PLUGIN_SERVER_PORT, )
+    server, future = await create_and_start_plugin_server(rixaplugin.settings.PLUGIN_DEFAULT_PORT,
+                                                          use_auth=settings.USE_AUTH_SYSTEM)
+    await future
+
+
+async def run_client(debug):
+    from rixaplugin import init_plugin_system, create_and_start_plugin_client
+    from rixaplugin import PluginModeFlags as PMF
+    from rixaplugin import settings
+    import rixaplugin
+    init_plugin_system(PMF.LOCAL | PMF.THREAD, debug=debug)
+    client, future = await create_and_start_plugin_client(rixaplugin.settings.PLUGIN_DEFAULT_ADDRESS,
+                                                          rixaplugin.settings.PLUGIN_DEFAULT_PORT,
+                                                          use_auth=settings.USE_AUTH_SYSTEM,
+                                                          return_future=True)
     await future
 
 
@@ -40,11 +91,19 @@ async def run_server(debug):
 @click.option("--debug", default=False, help="Activate debug mode")
 @click.option("--address", default="localhost", help="Listen address of server")
 def start_server(path, port=None, debug=None, address=None):
-    if port:
-        os.environ["DEFAULT_PLUGIN_SERVER_PORT"] = str(port)
-    os.environ["DEBUG"] = str(debug)
+    setup_plugin_system(path, address, port, debug)
+    asyncio.run(run_server(debug))
 
-    python_file = None
+
+def setup_plugin_system(path, address=None, port=None, debug=None):
+    import rixaplugin.settings as settings
+    if port:
+        settings.PLUGIN_DEFAULT_PORT = port
+    if address:
+        settings.PLUGIN_DEFAULT_ADDRESS = address
+    if debug:
+        settings.DEBUG = debug
+
     if os.path.isdir(path):
         print("Not yet implemented.")
         return
@@ -53,29 +112,31 @@ def start_server(path, port=None, debug=None, address=None):
             python_file = path
         # check for .ini
         elif path.endswith(".ini"):
-            print("Starting a server from a .ini file is not yet implemented.")
+            print("Starting a client from a .ini file is not yet implemented.")
             return
+        elif os.path.isfile(path + ".py"):
+            python_file = path + ".py"
         else:
             raise ValueError("Unknown file type.")
     else:
         raise FileNotFoundError("File or directory not found.")
-
     filename = os.path.basename(python_file)
     plugin_spec = importlib.util.spec_from_file_location(filename, python_file)
     module = importlib.util.module_from_spec(plugin_spec)
     plugin_spec.loader.exec_module(module)
     if debug:
-        print(f"Following functions have been found in {python_file}: {module.__dict__}")
-    asyncio.run(run_server(address))
+        print(
+            f"Following things have been found in {python_file}: {[i for i in module.__dict__.keys() if not i.startswith('_')]}")
 
 
 @main.command(help="Connect specified plugin to a server")
-@click.option("--path", default=".", help="Path to main config, python file or directory")
+@click.argument("path", type=click.Path(exists=True))
 @click.option("--address", default="localhost", help="Address of server")
-@click.option("--port", default=15000, help="Port of server")
-@click.option("--debug", default=False, help="Activate debug mode")
-def start_client(path, address, port, debug):
-    raise Exception("?")
+@click.option("--port", help="Port of server")
+@click.option("--debug", help="Activate debug mode")
+def start_client(path, address=None, port=None, debug=None):
+    setup_plugin_system(path, address, port, debug)
+    asyncio.run(run_client(address))
 
 
 @main.command(help="Retrieve all available functions from a server via quick connection")
@@ -92,7 +153,7 @@ def discover_plugins():
     pprint(plugs)
 
 
-@main.command(help="Gather system information")
+@setup.command(help="Gather system information")
 @click.option("-v", '--verbose', is_flag=True, default=True)
 def get_system_info(verbose):
     python_version = platform.python_version_tuple()

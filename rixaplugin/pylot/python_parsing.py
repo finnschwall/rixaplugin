@@ -132,8 +132,6 @@ class CodeVisitor(ast.NodeVisitor):
                     raise Exception(f"Variable with name '{arg.id}' not found")
             else:
                 args.append(ast.literal_eval(arg))
-        # args = [self.variables.get(arg.id, None) if isinstance(arg, ast.Name) else ast.literal_eval(arg) for arg in
-        #         node.args]
         kwargs = {kw.arg: self.variables.get(kw.value.id, None) if isinstance(kw.value, ast.Name) else ast.literal_eval(
             kw.value) for kw in node.keywords}
 

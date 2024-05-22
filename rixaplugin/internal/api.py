@@ -15,34 +15,6 @@ import logging
 api_logger = logging.getLogger("rixa.api_internal")
 
 
-# usually all plugin functions are run not directly but through the plugin system i.e. an executor
-# plugin function calls outside the plugin system are possible, however API calls have different meaning
-# using e.g. a display method locally should immediately display the result, while using it through the plugin system
-# should result in a oneway call to display on the remote
-# class ContextObject:
-#     # def __init__(self):
-#     #     # Internal dictionary to store attributes
-#
-#     def __get_ctx__(self):
-#         return _context.get()
-#
-#     def __getattr__(self, name):
-#         # Return the value if it exists, otherwise return None
-#         return self.__get_ctx__().get(name, None)
-#
-#     def __setattr__(self, name, value):
-#         # Set the attribute in the internal dictionary
-#         self.__get_ctx__()[name] = value
-#
-#     def __dir__(self):
-#         # List all attached variables/objects
-#         return self.__get_ctx__().keys()
-#
-#
-# worker_context = ContextObject()
-
-
-# fake user persistent data to allow for consistent behavior and testing without server
 
 def construct_api_module():
     api_funcs = python_parsing.class_to_func_signatures(BaseAPI)
@@ -63,7 +35,7 @@ def construct_api_module():
                     raise Exception("NOT IMPLEMENTED")
                     return
                 try:
-                    parsed = pickle.dumps([req_id,"API_FUNCTION", name, args, kwargs])
+                    parsed = pickle.dumps([req_id, "API_FUNCTION", name, args, kwargs])
                 except Exception as e:
                     raise e
                 _socket.get().send(parsed)
@@ -115,10 +87,14 @@ class BaseAPI:
     def worker_ctx(self):
         return _context.get()
 
-    def __init__(self, request_id, identity):
+    def __init__(self, request_id, identity, scope=None):
         self.request_id = request_id
         self.identity = identity
         self.is_remote = False
+        if scope:
+            self.scope = scope
+        else:
+            self.scope = {}
 
     async def display(self, html=None, json=None, plotly=None, text=None):
         # base implementation works in maximum compatibility mode i.e. just prints
@@ -131,7 +107,7 @@ class BaseAPI:
         if text:
             print("Text : ", text)
 
-    async def display_in_chat(self, text = None, html = None, json_str = None, plotly_obj = None,):
+    async def display_in_chat(self, text=None, html=None, json_str=None, plotly_obj=None, ):
         # base implementation works in maximum compatibility mode i.e. just prints
         if html:
             print("HTML : ", html[:100])
@@ -208,7 +184,6 @@ class BaseAPI:
         pass
 
 
-
 class RemoteAPI(BaseAPI):
     """
     API class for remote calls.
@@ -217,11 +192,15 @@ class RemoteAPI(BaseAPI):
     the server.
     """
 
-    def __init__(self, request_id, identity, network_adapter):
+    def __init__(self, request_id, identity, network_adapter, scope=None):
         self.request_id = request_id
         self.identity = identity
         self.is_remote = True
         self.network_adapter = network_adapter
+        if scope:
+            self.scope = scope
+        else:
+            self.scope = {}
 
     def __getattribute__(self, item):
         attr = super().__getattribute__(item)
@@ -229,8 +208,6 @@ class RemoteAPI(BaseAPI):
             return functools.partial(self.network_adapter.send_api_call, self.identity, self.request_id, item)
         else:
             return attr
-
-
 
 
 class JupyterAPI(BaseAPI):
@@ -300,6 +277,7 @@ def _init_process_worker(plugin_id):
 def get_api():
     return _plugin_ctx.get()
 
+
 def _call_function_sync_process(name, plugin_name, req_id, args, kwargs, ):
     global _req_id
     _req_id.set(req_id)
@@ -322,9 +300,9 @@ async def _call_function_async(func, api_obj, args, kwargs, return_future=True):
     return await func(*args, **kwargs)
 
 
-def relay_module(*args,**kwargs):
+def relay_module(*args, **kwargs):
     global _mode
-    print("RELAY", _mode.get(),args,kwargs)
+    print("RELAY", _mode.get(), args, kwargs)
 
 
 _plugin_ctx = contextvars.ContextVar('__plugin_api', default=BaseAPI(-1, -1))

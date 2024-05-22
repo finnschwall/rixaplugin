@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import zmq
 
 from rixaplugin.data_structures.enums import PluginModeFlags, FunctionPointerType
-from rixaplugin.internal.memory import _memory, get_function_entry
+from rixaplugin.internal.memory import _memory, get_function_entry_by_name, get_function_entry
 import functools
 from enum import Flag, auto
 from rixaplugin.internal.utils import *
@@ -94,7 +94,7 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
     if mode & PluginModeFlags.SERVER:
         from rixaplugin.internal.networking import create_and_start_plugin_server
         asyncio.create_task(create_and_start_plugin_server(settings.DEFAULT_PLUGIN_SERVER_PORT,
-                                                           use_auth=not settings.USE_AUTH_SYSTEM, return_future=False))
+                                                           use_auth=settings.USE_AUTH_SYSTEM, return_future=False))
 
     _memory.mode = mode
     _memory.plugin_system_active = True
@@ -104,10 +104,11 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
     core_log.debug("Plugin system initialized")
 
 
-async def execute_networked(func_name, plugin_name, args, kwargs, oneway, request_id,
-                            identity, network_adapter):
-    plugin_entry = get_function_entry(func_name, plugin_name)
-    api_obj = api.RemoteAPI(request_id, identity, network_adapter)
+async def execute_networked(func_name, plugin_name, plugin_id, args, kwargs, oneway, request_id,
+                            identity, network_adapter, scope):
+    # plugin_entry = get_function_entry(func_name, plugin_name)
+    plugin_entry = get_function_entry(func_name, plugin_id)
+    api_obj = api.RemoteAPI(request_id, identity, network_adapter, scope=scope)
 
     try:
         fut = await _execute(plugin_entry, args, kwargs, api_obj, return_future=True)
@@ -126,20 +127,12 @@ async def _execute_code(ast_obj, api_obj):
     async def _code_visitor_callback(entry, args, kwargs):
         fut = await _execute(entry, args, kwargs, api_obj, return_future=True, return_time_estimate=False)
         return await fut
-
-    visitor = python_parsing.CodeVisitor(_code_visitor_callback, _memory.function_list)
+    from pprint import pp
+    pp(_memory.get_functions(api_obj.scope))
+    visitor = python_parsing.CodeVisitor(_code_visitor_callback, _memory.get_functions(api_obj.scope))
 
     await visitor.visit(ast_obj)
 
-    # function_missing = None
-    # try:
-    #     await visitor.visit(ast_obj)
-    # except FunctionNotFoundException as f:
-    #     function_missing = f.message
-    # if function_missing:
-    #     exc =  FunctionNotFoundException("")
-    #     exc.message = function_missing
-    #     raise exc
     if "__call_res__" in visitor.variables:
         ret_val = visitor.variables["__call_res__"]
     else:
@@ -160,14 +153,6 @@ async def execute_code(code, api_obj=None, return_future=True, timeout=30):
 
     if api_obj is None:
         api_obj = api.BaseAPI(0, 0)
-        # cur_api = api._plugin_ctx.get()
-        # if cur_api.request_id == -1 and cur_api.identity==-1:
-        #     if _memory.mode & PluginModeFlags.JUPYTER:
-        #         api_obj = api.JupyterAPI(0, 0)
-        #     else:
-        #         api_obj = api.BaseAPI(0, 0)
-        # else:
-        #     api_obj = cur_api
 
     ast_obj = ast.parse(code)
 
@@ -175,7 +160,6 @@ async def execute_code(code, api_obj=None, return_future=True, timeout=30):
 
     if return_future:
         return future
-        # return await _wait_for_return(future, timeout)
     else:
         await supervise_future(future)
 
@@ -239,9 +223,11 @@ async def _execute(plugin_entry, args=(), kwargs={}, api_obj=None, return_future
         else:
             return await execute_async(plugin_entry, args, kwargs, api_obj, return_future=return_future)
     elif plugin_entry["type"] & FunctionPointerType.REMOTE:
-        if not _memory.plugins[plugin_entry["plugin_name"]]["is_alive"]:
+        # if not _memory.plugins[plugin_entry["plugin_name"]]["is_alive"]:
+        #     raise Exception(f"{plugin_entry['plugin_name']} is currently unreachable.")
+        if not _memory.plugins[plugin_entry["id"]]["is_alive"]:
             raise Exception(f"{plugin_entry['plugin_name']} is currently unreachable.")
-        _memory.plugins[plugin_entry["plugin_name"]]["active_tasks"] += 1
+        _memory.plugins[plugin_entry["id"]]["active_tasks"] += 1
 
         fut, est = await plugin_entry["remote_origin"].call_remote_function(plugin_entry, api_obj, args, kwargs,
                                                                             not return_future,
@@ -296,7 +282,7 @@ async def execute(function_name, plugin_name=None, args=None, kwargs=None, api_o
         else:
             api_obj = api.BaseAPI(req_id, _memory.ID)
 
-    plugin_entry = get_function_entry(function_name, plugin_name)
+    plugin_entry = get_function_entry_by_name(function_name, plugin_name)
     utils.is_valid_call(plugin_entry, args, kwargs)
     return await _execute(plugin_entry, args, kwargs, api_obj, return_future=return_future,
                           return_time_estimate=return_time_estimate, timeout=timeout)
