@@ -107,12 +107,12 @@ class BaseAPI:
         if text:
             print("Text : ", text)
 
-    async def display_in_chat(self, text=None, html=None, json_str=None, plotly_obj=None, ):
+
+    async def display_in_chat(self, tracker_entry = None, text = None, html = None, plotly_obj = None,
+            role = None, citations = None, index = None, flags = None):
         # base implementation works in maximum compatibility mode i.e. just prints
         if html:
             print("HTML : ", html[:100])
-        if json_str:
-            print("JSON : ", json_str[:100])
         if plotly_obj:
             print("Plotly was passed")
         if text:

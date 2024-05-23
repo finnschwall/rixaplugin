@@ -1,6 +1,7 @@
 import hashlib
 import importlib
 import os.path
+import pprint
 import sys
 import threading
 
@@ -111,7 +112,6 @@ class PluginMemory:
             signature_dict["plugin_id"] = plugin_id
             self.plugins[signature_dict["plugin_id"]]["functions"].append(signature_dict)
         else:
-            # create a plugin entry
             hash_str = self.hash_base_str + signature_dict["plugin_name"]
             hash_object = hashlib.sha256(hash_str.encode())
             plugin_id = hash_object.hexdigest()[:16]
@@ -123,16 +123,17 @@ class PluginMemory:
     def add_plugin(self, plugin_dict, identity, remote_origin, origin_is_client=False, tags = None):
         if not self.allow_remote_functions:
             return
+
         local_plugin_names = [i["name"] for i in self.plugins.values() if i["type"] & FunctionPointerType.LOCAL]
 
         # add functions to function list
         new_names = []
         to_pop = []
         updated_remote_id = None
-        for i in plugin_dict.values():
+        for ID, i in plugin_dict.items():
             if i["name"] in local_plugin_names:
                 core_log.warning(f"Plugin '{i['name']}' already exists locally. Skipping...")
-                to_pop.append(i["name"])
+                to_pop.append(ID)
                 continue
             if i["id"] in self.plugins:
                 core_log.debug(f"Plugin '{i['name']}' updated")
@@ -177,7 +178,9 @@ class PluginMemory:
         #             old_module_dict = old_module.__dict__
         #             old_module_dict.clear()
         #             old_module_dict.update(remote_module.__dict__)
-        plugin_dict = {k: v for k, v in plugin_dict.items() if k not in to_pop}
+        plugin_dict = {k: plugin_dict[k] for k in plugin_dict if k not in to_pop}
+        from pprint import pp
+        # pp(plugin_dict, width=150)
         if new_names:
             core_log.debug("Received new plugins: " + ", ".join(new_names))
         self.plugins = {**self.plugins, **plugin_dict}
@@ -249,18 +252,29 @@ class PluginMemory:
             readable_str += self._pretty_print_plugin(entry)
         return readable_str
 
-    def pretty_print_plugins(self):
+    def pretty_print_plugins(self, include_functions=True):
         readable_str = "Plugin info:\n---------\n"
         for name, entry in self.plugins.items():
-            readable_str += self._pretty_print_plugin(entry)
+            readable_str += self._pretty_print_plugin(entry, include_functions=include_functions)+"\n"
         return readable_str
 
-    def _pretty_print_plugin(self, entry):
+    def _pretty_print_plugin(self, entry, include_functions=True):
         readable_str = ""
-        readable_str += f"Name: {entry['name']}\nID: {'LOCAL' if entry['type'] & FunctionPointerType.LOCAL else entry['id']}," \
-                        f" TYPE:{entry['type']}, ALIVE:{entry['is_alive']}, N_TASKS: {entry['active_tasks']}\n"
-        for i in entry["functions"]:
-            readable_str += f"\t{generate_python_doc(i, include_docstr=False)}\n"
+        for i in entry:
+            if i == "functions":
+                continue
+            readable_str += f"\t{i}: {entry[i]}\n"
+        if include_functions:
+            readable_str += f"\tFunctions:\n"
+            for i in entry["functions"]:
+                readable_str += f"\t{generate_python_doc(i, include_docstr=True, tabulators=2)}\n"
+        # readable_str += f"Name: {entry['name']}\nID: {'LOCAL' if entry['type'] & FunctionPointerType.LOCAL else entry['id']}," \
+        #                 f" TYPE:{entry['type']}, ALIVE:{entry['is_alive']}, N_TASKS: {entry['active_tasks']}\n"
+        # if include_functions:
+        #     for i in entry["functions"]:
+        #         readable_str += f"\t{generate_python_doc(i, include_docstr=False)}\n"
+        # entry = {i: entry[i] for i in entry if i != "functions"}
+        readable_str = entry["name"] +":\n"+readable_str#+pprint.pformat(entry, indent=4)
         return readable_str
 
     def pretty_print_plugin(self, plugin_name):

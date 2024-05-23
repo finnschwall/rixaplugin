@@ -76,7 +76,7 @@ def generate_text(conversation_tracker_yaml, enable_function_calling=True, enabl
                 context_str += f"ID: {i['index']}\nDOC TITLE: {i['document_title']}\nHEADER: {i['header']}\n" \
                               f"CONTENT: {i['content']}\n"
         except Exception as e:
-            api.display_message("Knowledge retrieval system faulty. No context available.")
+            api.show_message("Knowledge retrieval system faulty. No context available.")
             llm_logger.exception(f"Could not retrieve context from knowledge base")
         llm.include_context_msg = True
     else:
@@ -95,9 +95,11 @@ def generate_text(conversation_tracker_yaml, enable_function_calling=True, enabl
     all_citations = []
     total_content = ""
     code_calls = []
-    for msg in assistant_msgs:
+    for i, msg in enumerate(assistant_msgs[::-1]):
         if "content" in msg:
             total_content += msg["content"]
+            if i!=len(assistant_msgs)-1:
+                total_content += "\n"
             citations = re.findall(r"\{\{(\d+)\}\}", msg["content"])
             try:
                 citation_ids = [int(c) for c in citations]

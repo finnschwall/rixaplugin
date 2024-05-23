@@ -16,7 +16,7 @@ def class_to_func_signatures(cls):
         function_specs.append(function_signature_to_dict(method))
     return function_specs
 
-def generate_python_doc(func_dict, include_docstr=True, short=False):
+def generate_python_doc(func_dict, include_docstr=True, short=False, tabulators=1):
     func_name = func_dict.get('name', "UNKNOWN")
     args = func_dict.get('args', [])
     kwargs = func_dict.get('kwargs', [])
@@ -50,7 +50,8 @@ def generate_python_doc(func_dict, include_docstr=True, short=False):
         if docstr != "":
             docstr = '\n"""\n' + docstr + '"""'
             docstr = docstr.split("\n")
-            docstr = "\n".join([f"\t{line}" for line in docstr])
+            tabs = "\t" * tabulators
+            docstr = "\n".join([f"{tabs}{line}" for line in docstr])
             doc += docstr
     return doc
 
