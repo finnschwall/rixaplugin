@@ -105,6 +105,7 @@
   <a href="index.html">Home</a>
 </nav><nav class="table w-full min-w-full my-6 lg:my-8">
   <ul>
+<li class="toctree-l1"><a class="reference internal" href="auth_system.html">Authentication and security</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules/modules.html">rixaplugin</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="modules/rixaplugin.html">rixaplugin package</a></li>
 </ul>
@@ -163,11 +164,11 @@
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.add_client_connection">add_client_connection() (rixaplugin.internal.memory.PluginMemory method)</a>
 </li>
+      <li><a href="modules/rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.add_entry">add_entry() (in module rixaplugin.default_plugins.knowledge_db_creation)</a>
+</li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.add_function">add_function() (rixaplugin.internal.memory.PluginMemory method)</a>
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.add_plugin">add_plugin() (rixaplugin.internal.memory.PluginMemory method)</a>
-</li>
-      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.add_remote_functions">add_remote_functions() (rixaplugin.internal.memory.PluginMemory method)</a>
 </li>
       <li><a href="modules/rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.add_urls">add_urls() (in module rixaplugin.default_plugins.knowledge_db_creation)</a>
 </li>
@@ -180,6 +181,8 @@
       <li><a href="modules/rixaplugin.html#rixaplugin.settings.ALLOWED_PLUGIN_HOSTS">ALLOWED_PLUGIN_HOSTS (in module rixaplugin.settings)</a>
 </li>
       <li><a href="modules/rixaplugin.data_structures.html#rixaplugin.data_structures.enums.HeaderFlags.API_CALL">API_CALL (rixaplugin.data_structures.enums.HeaderFlags attribute)</a>
+</li>
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.apply_tags_plugin">apply_tags_plugin() (rixaplugin.internal.memory.PluginMemory method)</a>
 </li>
       <li><a href="modules/rixaplugin.data_structures.html#rixaplugin.data_structures.enums.FunctionPointerType.ASYNC">ASYNC (rixaplugin.data_structures.enums.FunctionPointerType attribute)</a>
 </li>
@@ -219,6 +222,12 @@
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.networking.NetworkAdapter.call_remote_function">call_remote_function() (rixaplugin.internal.networking.NetworkAdapter method)</a>
 </li>
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.networking.CredentialsProvider.callback">callback() (rixaplugin.internal.networking.CredentialsProvider method)</a>
+
+      <ul style="list-style-type:none">
+        <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.networking.PluginServer.callback">(rixaplugin.internal.networking.PluginServer method)</a>
+</li>
+      </ul></li>
       <li><a href="modules/rixaplugin.data_structures.html#rixaplugin.data_structures.enums.CallstackType">CallstackType (class in rixaplugin.data_structures.enums)</a>
 </li>
       <li><a href="modules/rixaplugin.pylot.html#rixaplugin.pylot.python_parsing.CodeVisitor.check_signature_compatibility">check_signature_compatibility() (rixaplugin.pylot.python_parsing.CodeVisitor method)</a>
@@ -255,7 +264,11 @@
 </li>
       <li><a href="modules/rixaplugin.pylot.html#rixaplugin.pylot.proxy_builder.create_function_with_signature">create_function_with_signature() (in module rixaplugin.pylot.proxy_builder)</a>
 </li>
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.networking.create_keys">create_keys() (in module rixaplugin.internal.networking)</a>
+</li>
       <li><a href="modules/rixaplugin.pylot.html#rixaplugin.pylot.proxy_builder.create_module">create_module() (in module rixaplugin.pylot.proxy_builder)</a>
+</li>
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.networking.CredentialsProvider">CredentialsProvider (class in rixaplugin.internal.networking)</a>
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.rixalogger.RIXAFormatter.CRITICAL">CRITICAL (rixaplugin.internal.rixalogger.RIXAFormatter attribute)</a>
 </li>
@@ -278,12 +291,14 @@
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.delete_connection">delete_connection() (rixaplugin.internal.memory.PluginMemory method)</a>
 </li>
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.delete_plugin">delete_plugin() (rixaplugin.internal.memory.PluginMemory method)</a>
+</li>
       <li><a href="modules/rixaplugin.default_plugins.html#rixaplugin.default_plugins.math.differentiate">differentiate() (in module rixaplugin.default_plugins.math)</a>
+</li>
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.rixalogger.TerminalFormat.Dim">Dim (rixaplugin.internal.rixalogger.TerminalFormat attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
-      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.rixalogger.TerminalFormat.Dim">Dim (rixaplugin.internal.rixalogger.TerminalFormat attribute)</a>
-</li>
       <li><a href="modules/rixaplugin.html#rixaplugin.settings.DISABLED_LOGGERS">DISABLED_LOGGERS (in module rixaplugin.settings)</a>
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.utils.discover_plugins">discover_plugins() (in module rixaplugin.internal.utils)</a>
@@ -296,7 +311,11 @@
       </ul></li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.display_in_chat">display_in_chat() (rixaplugin.internal.api.BaseAPI method)</a>
 </li>
+      <li><a href="modules/rixaplugin.default_plugins.html#rixaplugin.default_plugins.math.draw_feynman">draw_feynman() (in module rixaplugin.default_plugins.math)</a>
+</li>
       <li><a href="modules/rixaplugin.default_plugins.html#rixaplugin.default_plugins.math.draw_plot">draw_plot() (in module rixaplugin.default_plugins.math)</a>
+</li>
+      <li><a href="modules/rixaplugin.default_plugins.html#rixaplugin.default_plugins.math.draw_plot_3D">draw_plot_3D() (in module rixaplugin.default_plugins.math)</a>
 </li>
   </ul></td>
   </tr>
@@ -309,8 +328,6 @@
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.rixalogger.TerminalFormat.END">END (rixaplugin.internal.rixalogger.TerminalFormat attribute)</a>
 </li>
-      <li><a href="modules/rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.entity_list_to_df">entity_list_to_df() (in module rixaplugin.default_plugins.knowledge_db_creation)</a>
-</li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.rixalogger.RIXAFormatter.ERROR">ERROR (rixaplugin.internal.rixalogger.RIXAFormatter attribute)</a>
 </li>
       <li><a href="modules/rixaplugin.default_plugins.html#rixaplugin.default_plugins.math.evaluate">evaluate() (in module rixaplugin.default_plugins.math)</a>
@@ -319,14 +336,14 @@
 </li>
       <li><a href="modules/rixaplugin.data_structures.html#rixaplugin.data_structures.enums.HeaderFlags.EXCEPTION_RETURN">EXCEPTION_RETURN (rixaplugin.data_structures.enums.HeaderFlags attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
       <li><a href="modules/rixaplugin.html#rixaplugin.execute">execute() (in module rixaplugin)</a>
 
       <ul style="list-style-type:none">
         <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.executor.execute">(in module rixaplugin.internal.executor)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.executor.execute_async">execute_async() (in module rixaplugin.internal.executor)</a>
 </li>
       <li><a href="modules/rixaplugin.html#rixaplugin.execute_code">execute_code() (in module rixaplugin)</a>
@@ -356,6 +373,8 @@
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.find_function_by_name">find_function_by_name() (rixaplugin.internal.memory.PluginMemory method)</a>
 </li>
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.find_plugin_by_name">find_plugin_by_name() (rixaplugin.internal.memory.PluginMemory method)</a>
+</li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.force_shutdown">force_shutdown() (rixaplugin.internal.memory.PluginMemory method)</a>
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.rixalogger.RIXAFormatter.format">format() (rixaplugin.internal.rixalogger.RIXAFormatter method)</a>
@@ -367,6 +386,8 @@
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.rixalogger.RIXAFormatter.FORMATS_CONSOLE">FORMATS_CONSOLE (rixaplugin.internal.rixalogger.RIXAFormatter attribute)</a>
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.rixalogger.RIXAFormatter.FORMATS_HTML">FORMATS_HTML (rixaplugin.internal.rixalogger.RIXAFormatter attribute)</a>
+</li>
+      <li><a href="modules/rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.from_json">from_json() (in module rixaplugin.default_plugins.knowledge_db_creation)</a>
 </li>
       <li><a href="modules/rixaplugin.data_structures.html#rixaplugin.data_structures.enums.HeaderFlags.FUNCTION_CALL">FUNCTION_CALL (rixaplugin.data_structures.enums.HeaderFlags attribute)</a>
 </li>
@@ -387,8 +408,6 @@
   <h2 id="G">G</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
-      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.networking.generate_curve_keys">generate_curve_keys() (in module rixaplugin.internal.networking)</a>
-</li>
       <li><a href="modules/rixaplugin.pylot.html#rixaplugin.pylot.python_parsing.generate_python_doc">generate_python_doc() (in module rixaplugin.pylot.python_parsing)</a>
 </li>
       <li><a href="modules/rixaplugin.pylot.html#rixaplugin.pylot.python_parsing.CodeVisitor.generic_visit">generic_visit() (rixaplugin.pylot.python_parsing.CodeVisitor method)</a>
@@ -411,17 +430,21 @@
 </li>
       <li><a href="modules/rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.get_entities_from_wiki_xml">get_entities_from_wiki_xml() (in module rixaplugin.default_plugins.knowledge_db_creation)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.executor.CountingProcessPoolExecutor.get_free_worker_count">get_free_worker_count() (rixaplugin.internal.executor.CountingProcessPoolExecutor method)</a>
 
       <ul style="list-style-type:none">
         <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.executor.CountingThreadPoolExecutor.get_free_worker_count">(rixaplugin.internal.executor.CountingThreadPoolExecutor method)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.get_function_entry">get_function_entry() (in module rixaplugin.internal.memory)</a>
 </li>
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.get_function_entry_by_name">get_function_entry_by_name() (in module rixaplugin.internal.memory)</a>
+</li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.get_functions">get_functions() (rixaplugin.internal.memory.PluginMemory method)</a>
+</li>
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.get_functions_as_str">get_functions_as_str() (rixaplugin.internal.memory.PluginMemory method)</a>
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.executor.CountingProcessPoolExecutor.get_max_task_count">get_max_task_count() (rixaplugin.internal.executor.CountingProcessPoolExecutor method)</a>
 
@@ -429,6 +452,10 @@
         <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.executor.CountingThreadPoolExecutor.get_max_task_count">(rixaplugin.internal.executor.CountingThreadPoolExecutor method)</a>
 </li>
       </ul></li>
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.get_plugin_id">get_plugin_id() (in module rixaplugin.internal.memory)</a>
+</li>
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.get_plugins">get_plugins() (rixaplugin.internal.memory.PluginMemory method)</a>
+</li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.executor.CountingProcessPoolExecutor.get_queued_task_count">get_queued_task_count() (rixaplugin.internal.executor.CountingProcessPoolExecutor method)</a>
 
       <ul style="list-style-type:none">
@@ -473,10 +500,12 @@
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.rixalogger.RIXAFormatter.INFO">INFO (rixaplugin.internal.rixalogger.RIXAFormatter attribute)</a>
 </li>
-      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.executor.init_plugin_system">init_plugin_system() (in module rixaplugin.internal.executor)</a>
+      <li><a href="modules/rixaplugin.default_plugins.html#rixaplugin.default_plugins.knowledge_db_creation.init">init() (in module rixaplugin.default_plugins.knowledge_db_creation)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.executor.init_plugin_system">init_plugin_system() (in module rixaplugin.internal.executor)</a>
+</li>
       <li><a href="modules/rixaplugin.default_plugins.html#rixaplugin.default_plugins.math.integrate">integrate() (in module rixaplugin.default_plugins.math)</a>
 </li>
       <li><a href="modules/rixaplugin.data_structures.html#rixaplugin.data_structures.enums.PluginModeFlags.IPC_SOCKET">IPC_SOCKET (rixaplugin.data_structures.enums.PluginModeFlags attribute)</a>
@@ -658,6 +687,10 @@
   <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
       <li><a href="modules/rixaplugin.html#rixaplugin.decorators.plugfunc">plugfunc() (in module rixaplugin.decorators)</a>
 </li>
+      <li><a href="modules/rixaplugin.html#rixaplugin.settings.PLUGIN_DEFAULT_ADDRESS">PLUGIN_DEFAULT_ADDRESS (in module rixaplugin.settings)</a>
+</li>
+      <li><a href="modules/rixaplugin.html#rixaplugin.settings.PLUGIN_DEFAULT_PORT">PLUGIN_DEFAULT_PORT (in module rixaplugin.settings)</a>
+</li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.networking.PluginClient">PluginClient (class in rixaplugin.internal.networking)</a>
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory">PluginMemory (class in rixaplugin.internal.memory)</a>
@@ -666,11 +699,13 @@
 </li>
       <li><a href="modules/rixaplugin.data_structures.html#rixaplugin.data_structures.rixa_exceptions.PluginNotFoundException">PluginNotFoundException</a>
 </li>
-      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.networking.PluginServer">PluginServer (class in rixaplugin.internal.networking)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.networking.PluginServer">PluginServer (class in rixaplugin.internal.networking)</a>
+</li>
       <li><a href="modules/rixaplugin.data_structures.html#rixaplugin.data_structures.variables.PluginVariable">PluginVariable (class in rixaplugin.data_structures.variables)</a>
+</li>
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.pretty_print_filtered_plugins">pretty_print_filtered_plugins() (rixaplugin.internal.memory.PluginMemory method)</a>
 </li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.memory.PluginMemory.pretty_print_plugin">pretty_print_plugin() (rixaplugin.internal.memory.PluginMemory method)</a>
 </li>
@@ -966,6 +1001,8 @@
         <li><a href="modules/rixaplugin.test.html#module-rixaplugin.test.sync_test_plugin">module</a>
 </li>
       </ul></li>
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.cli.run_client">run_client() (in module rixaplugin.internal.cli)</a>
+</li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.cli.run_server">run_server() (in module rixaplugin.internal.cli)</a>
 </li>
   </ul></td>
@@ -999,8 +1036,12 @@
       </ul></li>
       <li><a href="modules/rixaplugin.data_structures.html#rixaplugin.data_structures.variables.PluginVariable.set">set() (rixaplugin.data_structures.variables.PluginVariable method)</a>
 </li>
+      <li><a href="modules/rixaplugin.html#rixaplugin.set_tags">set_tags() (in module rixaplugin)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.cli.setup_plugin_system">setup_plugin_system() (in module rixaplugin.internal.cli)</a>
+</li>
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.show_message">show_message() (rixaplugin.internal.api.BaseAPI method)</a>
 
       <ul style="list-style-type:none">
@@ -1080,6 +1121,8 @@
   <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
       <li><a href="modules/rixaplugin.internal.html#rixaplugin.internal.rixalogger.TerminalFormat.Underlined">Underlined (rixaplugin.internal.rixalogger.TerminalFormat attribute)</a>
+</li>
+      <li><a href="modules/rixaplugin.data_structures.html#rixaplugin.data_structures.enums.HeaderFlags.UPDATE_REMOTE_PLUGINS">UPDATE_REMOTE_PLUGINS (rixaplugin.data_structures.enums.HeaderFlags attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">

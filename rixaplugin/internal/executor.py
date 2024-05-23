@@ -127,8 +127,6 @@ async def _execute_code(ast_obj, api_obj):
     async def _code_visitor_callback(entry, args, kwargs):
         fut = await _execute(entry, args, kwargs, api_obj, return_future=True, return_time_estimate=False)
         return await fut
-    from pprint import pp
-    pp(_memory.get_functions(api_obj.scope))
     visitor = python_parsing.CodeVisitor(_code_visitor_callback, _memory.get_functions(api_obj.scope))
 
     await visitor.visit(ast_obj)

@@ -135,9 +135,6 @@ class PluginMemory:
                 to_pop.append(i["name"])
                 continue
             if i["id"] in self.plugins:
-                # print(i["name"])
-                # print(self.plugins[i["name"]]["id"].decode())
-                # print(i["id"])
                 core_log.debug(f"Plugin '{i['name']}' updated")
                 updated_remote_id = self.plugins[i["id"]]["remote_id"]
                 # if self.plugins[i["id"]]["id"] == i["id"]:

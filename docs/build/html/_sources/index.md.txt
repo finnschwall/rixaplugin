@@ -11,6 +11,7 @@
 :maxdepth: 2
 
 [//]: # (modules/modules.rst)
+auth_system.md
 modules/modules.rst
 modules/rixaplugin.data_structures.rst
 modules/rixaplugin.pylot.rst

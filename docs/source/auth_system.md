@@ -1,9 +1,9 @@
 # Authentication and security
 
-> :warning: **Do not use debug tools like autoreload in combination!**
+> **Do not use debug tools like autoreload in combination!**
 
-The auth server and such tools are generally not compatible.
-Using the auth system in a debug environment can also make it very hard to debug.
+The auth server and debug tools are generally not compatible.
+Using the auth system in a debug environment can also make finding bugs very difficult.
 
 ## Connecting to a server with authentication
 Add or change the following line in your `config.ini` file:
@@ -23,7 +23,8 @@ In this you will have to put your private key (`client.key_secret`) and the serv
 Should you connect to a RIXA webserver instance, these keys can be downloaded from your account page
 (Usually `https://THESERVER.com/account_managment`).
 
-Note that your key is used on the server side for "tagging" the plugins you connect.
+The key(s) is used on the server side for "tagging" the plugins you connect.
+So download the key appropriate for the scope you want your plugin to be in.
 
 ## Allowing others to connect to your server
 The auth system needs to be activated as in above.
