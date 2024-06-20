@@ -101,6 +101,13 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
 
 
     atexit.register(_memory.clean)
+
+    for func in _memory.global_init:
+        func()
+
+    if not os.path.exists(settings.TMP_DATA_LOG_FOLDER):
+        os.makedirs(settings.TMP_DATA_LOG_FOLDER)
+
     core_log.debug("Plugin system initialized")
 
 

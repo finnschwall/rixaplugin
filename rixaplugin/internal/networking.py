@@ -120,7 +120,7 @@ class NetworkAdapter:
     async def send_exception(self, identity, request_id, exception):
         # RemoteException(exception_info['type'], exception_info['message'], exception_info['traceback']
         if settings.LOG_REMOTE_EXCEPTIONS_LOCALLY:
-            network_log.exception(f"Remote exception in {request_id}")
+            network_log.exception(f"Exception has occurred during call from remote '{request_id}'")
         exc_str = rixaplugin.internal.rixalogger.format_exception(exception, without_color=True)
 
         ret = {"HEAD": HeaderFlags.EXCEPTION_RETURN, "message": str(exception), "request_id": request_id,

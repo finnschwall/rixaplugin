@@ -92,49 +92,49 @@ def rgb_to_html(x, invert=False):
     return f"<p style='color:rgb({x[0]}, {x[1]}, {x[2]})'>"
 
 
-def format_exception(exception, context_lines=2, without_color=False, limit=5, html=False):
-    tracelist = traceback.extract_tb(exception.__traceback__, limit=limit)
-    trace_string = '\033[48;2;80;30;27m'
-    trace_string_colorless = ""
-    for trace in tracelist:
-        filename = trace.filename
-        line_number = trace.lineno
-
-        lines = linecache.getlines(filename)
-        start_line = max(line_number - context_lines, 1)
-        end_line = min(line_number + context_lines, len(lines))
-        code_area_lines = lines[start_line - 1:end_line]
-        code_area = ''
-        code_area_colorless = ""
-
-        for i, x in enumerate(code_area_lines):
-            if "\n" in x:
-                x = x[:-1]
-            if i == line_number - start_line:
-                code_area += TerminalFormat.rgb(255, 63, 5, False)
-            code_area += f"{TerminalFormat.rgb(10, 144, 72)}{start_line + i}{TerminalFormat.STANDARDTEXT} {x}" + "\n"
-            code_area_colorless += f"{start_line + i} {x}" + "\n"
-            if i == line_number - start_line:
-                code_area += '\033[48;2;80;30;27m'
-
-        loc_msg = f"\nIn {filename}:{line_number}\n"
-        trace_string += TerminalFormat.Bold + loc_msg + TerminalFormat.Reset_Bold + code_area
-        trace_string_colorless += loc_msg + code_area_colorless
-    exc_msg = f"{type(exception).__name__}: {exception}"
-    trace_string += exc_msg
-    trace_string_colorless += exc_msg
-    if without_color:
-        return trace_string_colorless
-
-    trace_lines = trace_string.split("\n")
-    trace_lines_colorless = trace_string_colorless.split("\n")
-    lens = [len(x) for x in trace_lines_colorless]
-    max_len = max(lens)
-    for i, x in enumerate(trace_lines):
-        trace_lines[i] = x + " " * (max_len - lens[i] + 2)
-    trace_string = "\n".join(trace_lines)
-
-    return trace_string + TerminalFormat.NC
+# def format_exception(exception, context_lines=2, without_color=False, limit=5, html=False):
+#     tracelist = traceback.extract_tb(exception.__traceback__, limit=limit)
+#     trace_string = '\033[48;2;80;30;27m'
+#     trace_string_colorless = ""
+#     for trace in tracelist:
+#         filename = trace.filename
+#         line_number = trace.lineno
+#
+#         lines = linecache.getlines(filename)
+#         start_line = max(line_number - context_lines, 1)
+#         end_line = min(line_number + context_lines, len(lines))
+#         code_area_lines = lines[start_line - 1:end_line]
+#         code_area = ''
+#         code_area_colorless = ""
+#
+#         for i, x in enumerate(code_area_lines):
+#             if "\n" in x:
+#                 x = x[:-1]
+#             if i == line_number - start_line:
+#                 code_area += TerminalFormat.rgb(255, 63, 5, False)
+#             code_area += f"{TerminalFormat.rgb(10, 144, 72)}{start_line + i}{TerminalFormat.STANDARDTEXT} {x}" + "\n"
+#             code_area_colorless += f"{start_line + i} {x}" + "\n"
+#             if i == line_number - start_line:
+#                 code_area += '\033[48;2;80;30;27m'
+#
+#         loc_msg = f"\nIn {filename}:{line_number}\n"
+#         trace_string += TerminalFormat.Bold + loc_msg + TerminalFormat.Reset_Bold + code_area
+#         trace_string_colorless += loc_msg + code_area_colorless
+#     exc_msg = f"{type(exception).__name__}: {exception}"
+#     trace_string += exc_msg
+#     trace_string_colorless += exc_msg
+#     if without_color:
+#         return trace_string_colorless
+#
+#     trace_lines = trace_string.split("\n")
+#     trace_lines_colorless = trace_string_colorless.split("\n")
+#     lens = [len(x) for x in trace_lines_colorless]
+#     max_len = max(lens)
+#     for i, x in enumerate(trace_lines):
+#         trace_lines[i] = x + " " * (max_len - lens[i] + 2)
+#     trace_string = "\n".join(trace_lines)
+#
+#     return trace_string + TerminalFormat.NC
 
 
 class RIXAFormatter(logging.Formatter):
@@ -219,7 +219,12 @@ def format_exception(exception, context_lines=2, without_color=False, limit=5, h
     tracelist = traceback.extract_tb(exception.__traceback__, limit=limit)
     trace_string = '\033[48;2;80;30;27m'
     trace_string_colorless = ""
-    for trace in tracelist[2:]:
+    for trace in tracelist:#tracelist[2:]:
+        if "rixaplugin/internal" in trace.filename or "concurrent/futures" in trace.filename\
+                or "rixaplugin/pylot" in trace.filename:
+            continue
+
+
         filename = trace.filename
         line_number = trace.lineno
 

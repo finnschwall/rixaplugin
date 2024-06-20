@@ -109,10 +109,10 @@
 <section id="authentication-and-security">
 <h1>Authentication and security<a class="headerlink" href="#authentication-and-security" title="Link to this heading">¶</a></h1>
 <blockquote>
-<div><p>:warning: <strong>Do not use debug tools like autoreload in combination!</strong></p>
+<div><p><strong>Do not use debug tools like autoreload in combination!</strong></p>
 </div></blockquote>
-<p>The auth server and such tools are generally not compatible.
-Using the auth system in a debug environment can also make it very hard to debug.</p>
+<p>The auth server and debug tools are generally not compatible.
+Using the auth system in a debug environment can also make finding bugs very difficult.</p>
 <section id="connecting-to-a-server-with-authentication">
 <h2>Connecting to a server with authentication<a class="headerlink" href="#connecting-to-a-server-with-authentication" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#connecting-to-a-server-with-authentication'">¶</a></h2>
 <p>Add or change the following line in your <code class="docutils literal notranslate"><span class="pre">config.ini</span></code> file:</p>
@@ -130,7 +130,8 @@ If not setup yet you can use the following command to create the necessary direc
 <h3>RIXA webserver<a class="headerlink" href="#rixa-webserver" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixa-webserver'">¶</a></h3>
 <p>Should you connect to a RIXA webserver instance, these keys can be downloaded from your account page
 (Usually <code class="docutils literal notranslate"><span class="pre">https://THESERVER.com/account_managment</span></code>).</p>
-<p>Note that your key is used on the server side for “tagging” the plugins you connect.</p>
+<p>The key(s) is used on the server side for “tagging” the plugins you connect.
+So download the key appropriate for the scope you want your plugin to be in.</p>
 </section>
 </section>
 <section id="allowing-others-to-connect-to-your-server">

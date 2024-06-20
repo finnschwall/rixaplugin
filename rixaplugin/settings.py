@@ -72,7 +72,10 @@ Default to which plugin system will connect/listen to.
 Not used outside of RIXA webserver or CLI.
 """
 
-
+TMP_DATA_LOG_FOLDER = config("TMP_DATA_LOG_FOLDER", default="/tmp/rixa_data_log")
+"""
+Folder for api.datalog_to_tmp
+"""
 
 
 

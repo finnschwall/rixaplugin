@@ -186,9 +186,10 @@ class PluginMemory:
         self.plugins = {**self.plugins, **plugin_dict}
         return updated_remote_id
 
-    def delete_plugin(self, name):
-        if name in self.plugins:
-            plugin_id = get_plugin_id(name)
+    def delete_plugin(self, plugin_id):
+        if plugin_id in self.plugins:
+            # plugin_id = get_plugin_id(name)
+            # return
             del self.plugins[plugin_id]
             self.function_list = [i for i in self.function_list if i["plugin_id"] != plugin_id]
 
@@ -246,28 +247,32 @@ class PluginMemory:
         readable_str += "\nPlugins:\n" + self.pretty_print_plugins()
         return readable_str
 
-    def pretty_print_filtered_plugins(self, scope):
+    def pretty_print_filtered_plugins(self, scope, include_functions=True, include_docstr=True,
+                                      include_plugin_meta=True):
         readable_str = "Plugin info:\n---------\n"
         for entry in self.get_plugins(scope):
-            readable_str += self._pretty_print_plugin(entry)
+            readable_str += self._pretty_print_plugin(entry, include_functions=include_functions,
+                                                      include_docstr=include_docstr, include_plugin_meta= include_plugin_meta)+"\n"
         return readable_str
 
-    def pretty_print_plugins(self, include_functions=True):
+    def pretty_print_plugins(self, include_functions=True, include_docstr=True):
         readable_str = "Plugin info:\n---------\n"
         for name, entry in self.plugins.items():
-            readable_str += self._pretty_print_plugin(entry, include_functions=include_functions)+"\n"
+            readable_str += self._pretty_print_plugin(entry, include_functions=include_functions,
+                                                      include_docstr=include_docstr)+"\n"
         return readable_str
 
-    def _pretty_print_plugin(self, entry, include_functions=True):
+    def _pretty_print_plugin(self, entry, include_functions=True, include_docstr=True, include_plugin_meta = True):
         readable_str = ""
-        for i in entry:
-            if i == "functions":
-                continue
-            readable_str += f"\t{i}: {entry[i]}\n"
+        if include_plugin_meta:
+            for i in entry:
+                if i == "functions":
+                    continue
+                readable_str += f"\t{i}: {entry[i]}\n"
         if include_functions:
             readable_str += f"\tFunctions:\n"
             for i in entry["functions"]:
-                readable_str += f"\t{generate_python_doc(i, include_docstr=True, tabulators=2)}\n"
+                readable_str += f"\t{generate_python_doc(i, include_docstr=include_docstr, tabulators=2)}\n"
         # readable_str += f"Name: {entry['name']}\nID: {'LOCAL' if entry['type'] & FunctionPointerType.LOCAL else entry['id']}," \
         #                 f" TYPE:{entry['type']}, ALIVE:{entry['is_alive']}, N_TASKS: {entry['active_tasks']}\n"
         # if include_functions:
@@ -277,13 +282,13 @@ class PluginMemory:
         readable_str = entry["name"] +":\n"+readable_str#+pprint.pformat(entry, indent=4)
         return readable_str
 
-    def pretty_print_plugin(self, plugin_name):
+    def pretty_print_plugin(self, plugin_name, include_docstr=True):
         readable_str = ""
         plugin_id = get_plugin_id(plugin_name)
         entry = self.plugins.get(plugin_id)
         if not entry:
             return "Plugin not found"
-        readable_str += self._pretty_print_plugin(entry)
+        readable_str += self._pretty_print_plugin(entry, include_docstr=include_docstr)
         return readable_str
 
     def get_sendable_plugins(self, remote_id=-1, skip=None):
@@ -374,11 +379,11 @@ class PluginMemory:
             return_plugins.append(val)
         return return_plugins
 
-    def get_functions_as_str(self, scope, short=False):
+    def get_functions_as_str(self, scope, short=False, include_docstr=True):
         funcs = self.get_functions(scope)
         func_str = ""
         for j in funcs:
-            func_str += generate_python_doc(j, include_docstr=True, short=short) + "\n\n"
+            func_str += generate_python_doc(j, include_docstr=include_docstr, short=short) + "\n\n"
         return func_str
 
     def clean(self):

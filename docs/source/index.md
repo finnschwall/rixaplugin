@@ -10,7 +10,8 @@
 ```{toctree}
 :maxdepth: 2
 
-[//]: # (modules/modules.rst)
+
+plugin_tutorial.md
 auth_system.md
 modules/modules.rst
 modules/rixaplugin.data_structures.rst

@@ -239,9 +239,11 @@
 <li class="toctree-l3"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI"><code class="docutils literal notranslate"><span class="pre">BaseAPI</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.call"><code class="docutils literal notranslate"><span class="pre">BaseAPI.call()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.call_client_js"><code class="docutils literal notranslate"><span class="pre">BaseAPI.call_client_js()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.datalog_to_tmp"><code class="docutils literal notranslate"><span class="pre">BaseAPI.datalog_to_tmp()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.display"><code class="docutils literal notranslate"><span class="pre">BaseAPI.display()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.display_in_chat"><code class="docutils literal notranslate"><span class="pre">BaseAPI.display_in_chat()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.execute_code_on_remote"><code class="docutils literal notranslate"><span class="pre">BaseAPI.execute_code_on_remote()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.get_request_id"><code class="docutils literal notranslate"><span class="pre">BaseAPI.get_request_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.retrieve_usr_obj"><code class="docutils literal notranslate"><span class="pre">BaseAPI.retrieve_usr_obj()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.save_usr_obj"><code class="docutils literal notranslate"><span class="pre">BaseAPI.save_usr_obj()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="rixaplugin.internal.html#rixaplugin.internal.api.BaseAPI.show_message"><code class="docutils literal notranslate"><span class="pre">BaseAPI.show_message()</span></code></a></li>
@@ -578,6 +580,11 @@ Not used outside of RIXA webserver or CLI.</p>
 Not used outside of RIXA webserver or CLI.</p>
 </dd></dl>
 <dl class="py data">
+<dt class="sig sig-object py" id="rixaplugin.settings.TMP_DATA_LOG_FOLDER">
+<span class="sig-prename descclassname"><span class="pre">rixaplugin.settings.</span></span><span class="sig-name descname"><span class="pre">TMP_DATA_LOG_FOLDER</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'/tmp/rixa_data_log'</span></em><a class="headerlink" href="#rixaplugin.settings.TMP_DATA_LOG_FOLDER" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.settings.TMP_DATA_LOG_FOLDER'">¶</a></dt>
+<dd><p>Folder for api.datalog_to_tmp</p>
+</dd></dl>
+<dl class="py data">
 <dt class="sig sig-object py" id="rixaplugin.settings.logfile_path">
 <span class="sig-prename descclassname"><span class="pre">rixaplugin.settings.</span></span><span class="sig-name descname"><span class="pre">logfile_path</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'log/main'</span></em><a class="headerlink" href="#rixaplugin.settings.logfile_path" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.settings.logfile_path'">¶</a></dt>
 <dd><p>Where logfile is located. Without starting <cite>/</cite> it is considered relative to the working directory.</p>
@@ -644,6 +651,7 @@ Not used outside of RIXA webserver or CLI.</p>
 <li><a :data-current="activeSection === '#rixaplugin.settings.MAX_LOG_SIZE'" class="reference internal" href="#rixaplugin.settings.MAX_LOG_SIZE"><code class="docutils literal notranslate"><span class="pre">MAX_LOG_SIZE</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.settings.PLUGIN_DEFAULT_ADDRESS'" class="reference internal" href="#rixaplugin.settings.PLUGIN_DEFAULT_ADDRESS"><code class="docutils literal notranslate"><span class="pre">PLUGIN_DEFAULT_ADDRESS</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.settings.PLUGIN_DEFAULT_PORT'" class="reference internal" href="#rixaplugin.settings.PLUGIN_DEFAULT_PORT"><code class="docutils literal notranslate"><span class="pre">PLUGIN_DEFAULT_PORT</span></code></a></li>
+<li><a :data-current="activeSection === '#rixaplugin.settings.TMP_DATA_LOG_FOLDER'" class="reference internal" href="#rixaplugin.settings.TMP_DATA_LOG_FOLDER"><code class="docutils literal notranslate"><span class="pre">TMP_DATA_LOG_FOLDER</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.settings.logfile_path'" class="reference internal" href="#rixaplugin.settings.logfile_path"><code class="docutils literal notranslate"><span class="pre">logfile_path</span></code></a></li>
 </ul>
 </li>

@@ -72,6 +72,7 @@
 <a href="index.html">Home</a>
 </nav><nav class="table w-full min-w-full my-6 lg:my-8">
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="auth_system.html">Authentication and security</a></li>
 <li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="modules/modules.html">rixaplugin<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
 <li class="toctree-l2"><a class="reference internal" href="modules/rixaplugin.html">rixaplugin package</a></li>
 </ul>
@@ -105,15 +106,122 @@
 <div id="content" role="main">
 <section id="plugin-programming-quickstart">
 <h1>Plugin programming quickstart<a class="headerlink" href="#plugin-programming-quickstart" title="Link to this heading">¶</a></h1>
-<p>COMING SOON</p>
-<section id="introduction">
-<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#introduction'">¶</a></h2>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#prerequisites'">¶</a></h2>
+<p>Install rixaplugin and make sure it works via</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rixaplugin<span class="w"> </span>setup<span class="w"> </span>get-system-info
+</pre></div>
+</div>
+<p>Go to a folder where you want to work on the project. Now setup a new plugin project via</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rixaplugin<span class="w"> </span>setup<span class="w"> </span>setup-work-dir
+</pre></div>
+</div>
+</section>
+<section id="basics">
+<h2>Basics<a class="headerlink" href="#basics" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#basics'">¶</a></h2>
+<p>There are two ways to write a plugin (in python):
+Async and sync.</p>
+<p>If you don’t know what async is, use the sync version and skip to the next section.</p>
+<section id="async">
+<h3>Async<a class="headerlink" href="#async" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#async'">¶</a></h3>
+<p>All methods shown in the tutorial exist in an async version. Most of the tutorial is also applicable.
+There are 3 reasons to use async:</p>
+<ol class="arabic simple">
+<li><p>High throughput. However this only applies if you really know what you are doing</p></li>
+<li><p>Direct interaction with the plugin system</p></li>
+<li><p>You need to do something that is not covered by the default sync implementation</p></li>
+</ol>
+<p>If none of these apply to you, use the sync version.</p>
+<p>To get started with async look at the async <a class="reference external" href="https://github.com/finnschwall/rixaplugin/tree/main/examples/tutorial">tutorial</a>.
+For direct interaction with the plugin system or programming of cases that is not covered by the default sync implementation,
+look at the rixaplugin.internal docs.</p>
+</section>
+<section id="sync">
+<h3>Sync<a class="headerlink" href="#sync" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#sync'">¶</a></h3>
+<p>You basically program like you would any other python program.
+Avoid functions that have <code class="docutils literal notranslate"><span class="pre">async_</span></code> in their name. They will produce confusing errors.</p>
+</section>
+</section>
+<section id="writing-a-plugin">
+<h2>Writing a plugin<a class="headerlink" href="#writing-a-plugin" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#writing-a-plugin'">¶</a></h2>
+<section id="the-basics">
+<h3>The basics<a class="headerlink" href="#the-basics" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#the-basics'">¶</a></h3>
+<p>There are key aspects to writing a plugin:</p>
+<ol class="arabic simple">
+<li><p>The plugin system is purely functional</p></li>
+</ol>
+<p>Your functions are grouped by the file they are in but ultimately they are just functions.
+No classes, no modules, no shared variables.
+2. The plugin system is stateless</p>
+<p>This is crucial! Even if a user interaction leads to two calls inside your plugin, they are not connected.
+Your plugin is (for the most part) unaware where the call even came from.
+If you work in the sync version this is even more important. The same variable inside your plugin is potentially different for two functions.
+If you need to store data or make data available across functions use <code class="docutils literal notranslate"><span class="pre">PluginVariable</span></code> from <code class="docutils literal notranslate"><span class="pre">rixaplugin.variable</span></code>
+3. Docstrings and typehints are not optional</p>
+<p>The main server that executes your plugin functions relies on knowing what exactly your functions do.
+If you don’t provide <strong>good</strong> docstrings and correct typehints, your plugin will not work as intended.
+4. Proper exceptions</p>
+<p>Make sure that your functions raise understandable exceptions.
+This does not mean you need a manual exception for every possible error.
+But if an error is raised, the next course of action should be clear from the exception message.
+Especially in cases where an error is potentially recoverable, a verbose exception can make a huge difference.</p>
+</section>
+<section id="examples">
+<h3>Examples<a class="headerlink" href="#examples" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#examples'">¶</a></h3>
+<p>Before you continue look at the various <a class="reference external" href="https://github.com/finnschwall/rixaplugin/tree/main/rixaplugin/default_plugins">default plugins</a>.
+math and catbot are the most straightforward. They should provide a good reference for your own plugin.</p>
+</section>
+<section id="coding">
+<h3>Coding<a class="headerlink" href="#coding" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#coding'">¶</a></h3>
+<p>The most important part:
+You always start without the plugin system.
+Be sure that all of your functions work as intended.
+Debugging inside the plugin system is cumbersome and is for unexpected errors only.</p>
+</section>
+<section id="everything-ready">
+<h3>Everything ready?<a class="headerlink" href="#everything-ready" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#everything-ready'">¶</a></h3>
+<ul class="simple">
+<li><p>Do all your functions work?</p></li>
+<li><p>Is everything documented?</p></li>
+<li><p>Are your functions stateless?</p></li>
+<li><p>How do your functions react to faulty input?</p></li>
+<li><p>Are your functions tested?</p></li>
+<li><p>Are there exceptions?</p></li>
+<li><p>Have you set up logging or print statements for debugging?</p></li>
+</ul>
+</section>
+<section id="running-the-plugin">
+<h3>Running the plugin<a class="headerlink" href="#running-the-plugin" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#running-the-plugin'">¶</a></h3>
+<p>Start with a dryrun</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rixaplugin<span class="w"> </span>start-client<span class="w"> </span>YOUR_FILE.py
+</pre></div>
+</div>
+<p>inside your plugin directory.</p>
+<p>Everything works? Great. Stop the server. You are ready for a proper setup.</p>
+<p>Inside your working directory should be a <code class="docutils literal notranslate"><span class="pre">config.ini</span></code> file.
+This file is used to configure your plugin. E.g. you’ll need to change <code class="docutils literal notranslate"><span class="pre">PLUGIN_DEFAULT_PORT</span></code> when you want to connect to a server.
+All settings are documented in the <a class="reference external" href="https://finnschwall.github.io/rixaplugin/modules/rixaplugin.html#module-rixaplugin.settings">docs</a>.</p>
+<p>If you want to connect to a RIXA server instance, follow this <a class="reference external" href="https://finnschwall.github.io/rixaplugin/auth_system.html">tutorial</a></p>
+</section>
 </section>
 </section>
 </div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
-<li><a :data-current="activeSection === '#introduction'" class="reference internal" href="#introduction">Introduction</a></li>
+<li><a :data-current="activeSection === '#prerequisites'" class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li><a :data-current="activeSection === '#basics'" class="reference internal" href="#basics">Basics</a><ul>
+<li><a :data-current="activeSection === '#async'" class="reference internal" href="#async">Async</a></li>
+<li><a :data-current="activeSection === '#sync'" class="reference internal" href="#sync">Sync</a></li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#writing-a-plugin'" class="reference internal" href="#writing-a-plugin">Writing a plugin</a><ul>
+<li><a :data-current="activeSection === '#the-basics'" class="reference internal" href="#the-basics">The basics</a></li>
+<li><a :data-current="activeSection === '#examples'" class="reference internal" href="#examples">Examples</a></li>
+<li><a :data-current="activeSection === '#coding'" class="reference internal" href="#coding">Coding</a></li>
+<li><a :data-current="activeSection === '#everything-ready'" class="reference internal" href="#everything-ready">Everything ready?</a></li>
+<li><a :data-current="activeSection === '#running-the-plugin'" class="reference internal" href="#running-the-plugin">Running the plugin</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </aside>

@@ -3,6 +3,7 @@ https://www.youtube.com/watch?v=siwpn14IE7E
 """
 import contextvars
 import functools
+import os.path
 
 import zmq
 
@@ -11,7 +12,7 @@ from rixaplugin.pylot import python_parsing, proxy_builder
 import asyncio
 import pickle
 import logging
-
+import rixaplugin.settings as settings
 api_logger = logging.getLogger("rixa.api_internal")
 
 
@@ -83,6 +84,9 @@ class BaseAPI:
     The API implementation assumes a django server, although as mentioned it is not a requirement.
     """
 
+    @staticmethod
+    def get_request_id(function_name, args, kwargs):
+        return utils.identifier_from_signature(function_name, args, kwargs)
     @property
     def worker_ctx(self):
         return _context.get()
@@ -117,6 +121,23 @@ class BaseAPI:
             print("Plotly was passed")
         if text:
             print("Text : ", text)
+
+    async def datalog_to_tmp(self, message, write_mode = "a"):
+        """
+        Write into a file in the tmp directory.
+
+        Filename is the request_id of the API object.
+        Folder can be specified via settings.TMP_DATA_LOG_FOLDER
+        This is not meant for normal logging, but for large text dumps (e.g. a chat history) that are tied to a specific
+        request.
+        :param message: String to write
+        :param write_mode: Mode to open the file in. Default is append.
+        """
+        print("hoy mate")
+        print(dir(self))
+        with open(os.path.join(settings.TMP_DATA_LOG_FOLDER, f"{self.request_id}.log"), write_mode) as f:
+            f.write(message)
+
 
     async def execute_code_on_remote(self, code):
         fut = await executor.execute_code(code, api_obj=self, return_future=True)
@@ -204,7 +225,7 @@ class RemoteAPI(BaseAPI):
 
     def __getattribute__(self, item):
         attr = super().__getattribute__(item)
-        if callable(attr) and hasattr(BaseAPI, item) and not item.startswith("__"):
+        if callable(attr) and hasattr(BaseAPI, item) and not item.startswith("__") and item not in ["datalog_to_tmp"]:
             return functools.partial(self.network_adapter.send_api_call, self.identity, self.request_id, item)
         else:
             return attr
@@ -317,7 +338,7 @@ _socket = contextvars.ContextVar('_socket', default=None)
 _mode = contextvars.ContextVar('_mode', default=0)
 
 # def _call_function_async(func, args, kwargs, api_obj=None, return_future = True):
-from rixaplugin.internal import executor
+from rixaplugin.internal import executor, utils
 
 # set ctx vars for API
 # def _call_function(func, args, kwargs, request_id, identity, callstack_type : CallstackType):
