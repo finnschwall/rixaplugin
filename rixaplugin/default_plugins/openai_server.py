@@ -144,10 +144,10 @@ You need to respond in JSON format and with this only. It needs to look like thi
     llm.user_symbols["USR_SYSTEM_MSG"] = "" if not system_msg else system_msg
 
     msg2 = llm.build_prompt_as_str(use_build_prompt=True, include_system_msg=True)[-2000:]
-    api.display(msg2.replace("\n", "<br>"))
+    # api.display(msg2.replace("\n", "<br>"))
     llm_response = llm.create_completion(preprocessor_msg)
 
-    api.display(llm_response.replace("\n", "<br>"))
+    # api.display(llm_response.replace("\n", "<br>"))
     try:
         preprocessor_json = json.loads(llm_response)
     except:
@@ -248,12 +248,10 @@ You need to respond in JSON format and with this only. It needs to look like thi
     merged_tracker_entry["metadata"] = llm.finish_meta
     merged_tracker_entry["processing"] = preprocessor_json
     tracker.tracker.append(merged_tracker_entry)
-    import os
-    print(os.getcwd())
-    print("HEY")
+
     # with open("tracker.yaml", "w") as f:
     #     f.write(tracker.to_yaml())
-    user_api.datalog_to_tmp(f"\n\n\n{tracker.to_yaml()}")
+    api.datalog_to_tmp(f"\n\n\n{tracker.to_yaml()}")
     # tracker.inversion_scheme = None
     # tracker.system_message=None
     return tracker.to_yaml()

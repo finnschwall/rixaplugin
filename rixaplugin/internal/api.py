@@ -26,7 +26,6 @@ def construct_api_module():
                 i["args"].remove(j)
 
     def factory_sync(name, args, kwargs):
-
         api_obj = _plugin_ctx.get()
         try:
             #
@@ -133,8 +132,6 @@ class BaseAPI:
         :param message: String to write
         :param write_mode: Mode to open the file in. Default is append.
         """
-        print("hoy mate")
-        print(dir(self))
         with open(os.path.join(settings.TMP_DATA_LOG_FOLDER, f"{self.request_id}.log"), write_mode) as f:
             f.write(message)
 
