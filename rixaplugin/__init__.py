@@ -59,9 +59,7 @@ def execute(function_name, plugin_name=None, args=None, kwargs=None, timeout=30)
     :param timeout: Timeout in s before a TimeoutError is raised
     :return:
     """
-    # print("A")
     api_obj = _api.get_api()
-    # print("B")
     procmode = _api._mode.get()
     if procmode == 2:
         process_socket = _api._socket.get()

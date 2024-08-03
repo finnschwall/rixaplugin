@@ -9,7 +9,7 @@ from rixaplugin.pylot.proxy_builder import create_module
 from rixaplugin.pylot.python_parsing import generate_python_doc
 import zmq.asyncio as aiozmq
 import logging
-from rixaplugin.data_structures.enums import FunctionPointerType, HeaderFlags
+from rixaplugin.data_structures.enums import FunctionPointerType, HeaderFlags, Scope
 import secrets
 from rixaplugin.data_structures.rixa_exceptions import FunctionNotFoundException, PluginNotFoundException
 
@@ -117,8 +117,34 @@ class PluginMemory:
             plugin_id = hash_object.hexdigest()[:16]
             signature_dict["plugin_id"] = id
             plugin = {"name": signature_dict["plugin_name"], "functions": [signature_dict], "id": plugin_id, "tags":[],
-                      "type": fn_type, "is_alive": True, "active_tasks": 0}
+                      "type": fn_type, "is_alive": True, "active_tasks": 0, "variables": {}}
             self.plugins[plugin_id] = plugin
+
+    def add_variable(self, plugin_var):
+        plugin_id = get_plugin_id(plugin_var._plugin_name)
+        if plugin_id:
+            plugin = self.plugins[plugin_id]
+            plugin["variables"][plugin_var.name] = plugin_var.to_dict()
+        else:
+            hash_str = self.hash_base_str + plugin_var._plugin_name
+            hash_object = hashlib.sha256(hash_str.encode())
+            plugin_id = hash_object.hexdigest()[:16]
+            plugin = {"name": plugin_var._plugin_name, "variables": {plugin_var.name:plugin_var.to_dict()}, "id": plugin_id, "tags":[],
+                        "type": FunctionPointerType.LOCAL, "is_alive": True, "active_tasks": 0, "functions": []}
+            self.plugins[plugin_id] = plugin
+
+    def get_all_variables(self, read_scope : Scope = Scope.USER):
+        variables = {}
+        # return variables in format {plugin_name: {var_name: var_dict}}
+        for plugin in self.plugins.values():
+            all_plugin_variables = plugin["variables"]
+            plugin_variables = {}
+            for var_name, var_dict in all_plugin_variables.items():
+                if var_dict["readable"] & read_scope:
+                    plugin_variables[var_name] = var_dict
+            if plugin_variables:
+                variables[plugin["name"]] = plugin_variables
+        return variables
 
     def add_plugin(self, plugin_dict, identity, remote_origin, origin_is_client=False, tags = None):
         if not self.allow_remote_functions:
@@ -138,12 +164,6 @@ class PluginMemory:
             if i["id"] in self.plugins:
                 core_log.debug(f"Plugin '{i['name']}' updated")
                 updated_remote_id = self.plugins[i["id"]]["remote_id"]
-                # if self.plugins[i["id"]]["id"] == i["id"]:
-                #     core_log.debug(f"Plugin '{i['name']}' updated")
-                # else:
-                #     to_pop.append(i["name"])
-                #     core_log.error(f"Plugin '{i['name']}' already exists with different ID. Skipping...")
-                #     continue
                 del self.plugins[i["id"]]
                 self.function_list = [j for j in self.function_list if j["plugin_name"] != i["name"]]
             new_names.append(i["name"])
@@ -179,8 +199,6 @@ class PluginMemory:
         #             old_module_dict.clear()
         #             old_module_dict.update(remote_module.__dict__)
         plugin_dict = {k: plugin_dict[k] for k in plugin_dict if k not in to_pop}
-        from pprint import pp
-        # pp(plugin_dict, width=150)
         if new_names:
             core_log.debug("Received new plugins: " + ", ".join(new_names))
         self.plugins = {**self.plugins, **plugin_dict}
@@ -314,7 +332,8 @@ class PluginMemory:
 
             sendable_plugin["functions"] = [j for j in sendable_plugin["functions"] if
                                             not j["type"] & FunctionPointerType.LOCAL_ONLY]
-
+            #remove variables that are local read only
+            sendable_plugin["variables"] = {k: v for k, v in sendable_plugin["variables"].items() if v["writable"] != 0}
             sendable_dict[key] = sendable_plugin
 
         # clean up i.e. remove pointers and other unnecessary data from function entries
@@ -386,7 +405,7 @@ class PluginMemory:
             func_str += generate_python_doc(j, include_docstr=include_docstr, short=short) + "\n\n"
         return func_str
 
-    def clean(self):
+    def clean(self, *args):
         with self.lock:
             if self.is_clean:
                 print("Already clean")
@@ -401,11 +420,14 @@ class PluginMemory:
                 for i in self._client_connections:
                     i.close()
                 if self.zmq_context:
-                    if self.server:
-                        if self.server.use_curve:
-                            self.server.auth.stop()
+                    # if self.server:
+                    #     if self.server.use_curve:
+                    #         self.server.auth.stop()
                     self.zmq_context.term()
-            except:
+                print("DONE")
+            except Exception as e:
+                import traceback
+                print(traceback.format_exc())
                 pass
 
     @staticmethod

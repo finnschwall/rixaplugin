@@ -1,7 +1,9 @@
+import asyncio
 import base64
 from rixaplugin.decorators import plugfunc
 import rixaplugin.sync_api as api
 import urllib.request
+import time
 
 @plugfunc()
 def get_cat(query_str=""):
@@ -18,7 +20,7 @@ def get_cat(query_str=""):
     """
     url = f"https://cataas.com/cat{query_str}"
 
-    with urllib.request.urlopen(url) as response:
+    with urllib.request.urlopen(url, timeout=2000) as response:
         img_base64 = base64.b64encode(response.read()).decode()
         api.display(html=f'<img src="data:image/png;base64,{img_base64}" style="background-color:white;height:100%; width:auto"/>')
 

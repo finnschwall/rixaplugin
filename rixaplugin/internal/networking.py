@@ -118,7 +118,6 @@ class NetworkAdapter:
         await self.send(identity, raw, already_serialized=True)
 
     async def send_exception(self, identity, request_id, exception):
-        # RemoteException(exception_info['type'], exception_info['message'], exception_info['traceback']
         if settings.LOG_REMOTE_EXCEPTIONS_LOCALLY:
             network_log.exception(f"Exception has occurred during call from remote '{request_id}'")
         exc_str = rixaplugin.internal.rixalogger.format_exception(exception, without_color=True)
@@ -194,13 +193,14 @@ class NetworkAdapter:
     async def listen(self):
 
         while True:
-
-            if self.is_server:
-                identity, message = await self.con.recv_multipart(copy=True)
-            else:
-                message = await self.con.recv()
-                identity = self
-                # network_log.debug(f"Received something from remote on client {identity}")
+            try:
+                if self.is_server:
+                    identity, message = await self.con.recv_multipart(copy=True)
+                else:
+                    message = await self.con.recv()
+                    identity = self
+            except asyncio.CancelledError:
+                return
             try:
                 try:
                     msg = msgpack.unpackb(message)
@@ -388,7 +388,6 @@ class PluginServer(NetworkAdapter):
 
 
     def __init__(self, port, address=None, use_curve=True, manually_created=True):
-        # TODO implement curve via https://gist.github.com/mivade/97c2dc353a1bb460a1d44010df66e6d7
         if not address:
             address = f"tcp://*:{port}"
         super().__init__(port, use_curve, manually_created=manually_created, address=address)

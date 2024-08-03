@@ -100,7 +100,8 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
     _memory.plugin_system_active = True
 
 
-    atexit.register(_memory.clean)
+    # atexit.register(_memory.clean)
+
 
     for func in _memory.global_init:
         func()
@@ -113,7 +114,6 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
 
 async def execute_networked(func_name, plugin_name, plugin_id, args, kwargs, oneway, request_id,
                             identity, network_adapter, scope):
-    # plugin_entry = get_function_entry(func_name, plugin_name)
     plugin_entry = get_function_entry(func_name, plugin_id)
     api_obj = api.RemoteAPI(request_id, identity, network_adapter, scope=scope)
 
@@ -131,9 +131,18 @@ async def execute_networked(func_name, plugin_name, plugin_id, args, kwargs, one
 
 
 async def _execute_code(ast_obj, api_obj):
+
     async def _code_visitor_callback(entry, args, kwargs):
         fut = await _execute(entry, args, kwargs, api_obj, return_future=True, return_time_estimate=False)
-        return await fut
+        try:
+            return await asyncio.wait_for(fut, timeout=5)
+        except asyncio.TimeoutError:
+            raise Exception(f"Execution of {entry['name']} in {entry['plugin_name']} timed out after {settings.FUNCTION_CALL_TIMEOUT} "
+                            f"seconds. This timeout was detected by the FUNCTION_CALLING system."
+                            f"This should not happen and in all likelihood the function is broken. Do not call it again!"
+                            f"You will potentially deadlock the system!"
+                            f"Failure to comply will lead to ban of user that initiated request.")
+        # return await fut
     visitor = python_parsing.CodeVisitor(_code_visitor_callback, _memory.get_functions(api_obj.scope))
 
     await visitor.visit(ast_obj)
@@ -215,21 +224,33 @@ async def _wait_for_return(future, timeout):
         raise RemoteTimeoutException(f"Remote function call timed out after {timeout} seconds.")
 
 
+
+
 async def _execute(plugin_entry, args=(), kwargs={}, api_obj=None, return_future=False, return_time_estimate=False,
-                   timeout=30):
+                   timeout=None):
     if api_obj is None:
         api_obj = api.BaseAPI(0, 0)
     if return_future:
         # tasks that don't return are tasks too. But it's hard to accurately check if/when they're done.
         _memory.tasks_in_system += 1
+    if not timeout:
+        timeout = settings.FUNCTION_CALL_TIMEOUT
+    async def execute_with_timeout(coroutine):
+        try:
+            return await asyncio.wait_for(coroutine, timeout=5)
+        except asyncio.TimeoutError:
+            raise Exception(f"Execution of {plugin_entry['plugin_name']} timed out after {timeout} seconds.")
+
     if plugin_entry["type"] & FunctionPointerType.LOCAL:
         if plugin_entry["type"] & FunctionPointerType.SYNC:
-            return await execute_sync(plugin_entry, args, kwargs, api_obj, return_future=return_future)
+            coroutine = execute_sync(plugin_entry, args, kwargs, api_obj, return_future=return_future)
         else:
-            return await execute_async(plugin_entry, args, kwargs, api_obj, return_future=return_future)
+            coroutine = execute_async(plugin_entry, args, kwargs, api_obj, return_future=return_future)
+        if return_future:
+            return await coroutine
+        return await execute_with_timeout(coroutine)
+
     elif plugin_entry["type"] & FunctionPointerType.REMOTE:
-        # if not _memory.plugins[plugin_entry["plugin_name"]]["is_alive"]:
-        #     raise Exception(f"{plugin_entry['plugin_name']} is currently unreachable.")
         if not _memory.plugins[plugin_entry["id"]]["is_alive"]:
             raise Exception(f"{plugin_entry['plugin_name']} is currently unreachable.")
         _memory.plugins[plugin_entry["id"]]["active_tasks"] += 1
@@ -238,13 +259,35 @@ async def _execute(plugin_entry, args=(), kwargs={}, api_obj=None, return_future
                                                                             not return_future,
                                                                             return_time_estimate=True)
         if return_time_estimate:
-            return fut, est
-            # return await _wait_for_return(fut, timeout), est
+            if return_future:
+                return fut, est
+            return await execute_with_timeout(fut), est
         else:
-            return fut
-            # return await _wait_for_return(fut, timeout)
+            if return_future:
+                return fut
+            return await execute_with_timeout(fut)
 
-    raise NotImplementedError()
+    # if plugin_entry["type"] & FunctionPointerType.LOCAL:
+    #     if plugin_entry["type"] & FunctionPointerType.SYNC:
+    #         return await execute_sync(plugin_entry, args, kwargs, api_obj, return_future=return_future)
+    #     else:
+    #         return await execute_async(plugin_entry, args, kwargs, api_obj, return_future=return_future)
+    # elif plugin_entry["type"] & FunctionPointerType.REMOTE:
+    #     if not _memory.plugins[plugin_entry["id"]]["is_alive"]:
+    #         raise Exception(f"{plugin_entry['plugin_name']} is currently unreachable.")
+    #     _memory.plugins[plugin_entry["id"]]["active_tasks"] += 1
+    #
+    #     fut, est = await plugin_entry["remote_origin"].call_remote_function(plugin_entry, api_obj, args, kwargs,
+    #                                                                         not return_future,
+    #                                                                         return_time_estimate=True)
+    #     if return_time_estimate:
+    #         return fut, est
+    #         # return await _wait_for_return(fut, timeout), est
+    #     else:
+    #         return fut
+    #         # return await _wait_for_return(fut, timeout)
+    #
+    # raise NotImplementedError()
 
 
 async def execute(function_name, plugin_name=None, args=None, kwargs=None, api_obj=None, return_future=False,
@@ -281,11 +324,17 @@ async def execute(function_name, plugin_name=None, args=None, kwargs=None, api_o
     if not _memory.plugin_system_active:
         raise Exception("Plugin system not initialized")
     if not api_obj:
-        req_id = utils.identifier_from_signature(function_name, args, kwargs)
-        if _memory.mode & PluginModeFlags.JUPYTER:
-            api_obj = api.JupyterAPI(req_id, _memory.ID)
+        potential_api = api.get_api()
+        #check if potential_api is BaseAPI or a derived class. If it is "just" a BaseAPI, create a new API object
+        if isinstance(potential_api, api.BaseAPI) and not type(potential_api) == api.BaseAPI:
+            api_obj = potential_api
+
         else:
-            api_obj = api.BaseAPI(req_id, _memory.ID)
+            req_id = utils.identifier_from_signature(function_name, args, kwargs)
+            if _memory.mode & PluginModeFlags.JUPYTER:
+                api_obj = api.JupyterAPI(req_id, _memory.ID)
+            else:
+                api_obj = api.BaseAPI(req_id, _memory.ID)
 
     plugin_entry = get_function_entry_by_name(function_name, plugin_name)
     utils.is_valid_call(plugin_entry, args, kwargs)

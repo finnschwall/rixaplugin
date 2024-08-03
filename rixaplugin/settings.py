@@ -157,7 +157,12 @@ RIXA_LOG_LEVEL = config("RIXA_LOG_LEVEL", default="DEBUG")
 
 USE_RIXA_LOGGING = config("USE_RIXA_LOGGING", default=True, cast=bool)
 
+FUNCTION_CALL_TIMEOUT = config("FUNCTION_CALL_TIMEOUT", default=120, cast=int)
+"""Timeout for function calls in seconds. After this time an exception will be raised.
+Multiple occurences can lead to a plugin being marked as offline and hence be disabled.
 
+Also: Try to avoid timing out. It potentially leads to a plethora of error messages as everything along the call chain
+will subsequently time out too. All intermediate instances may raise some sort of error."""
 
 if USE_RIXA_LOGGING:
     logging.setLoggerClass(_RIXALogger)

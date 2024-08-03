@@ -94,6 +94,7 @@ class BaseAPI:
         self.request_id = request_id
         self.identity = identity
         self.is_remote = False
+        self.plugin_variables = {}
         if scope:
             self.scope = scope
         else:
@@ -102,24 +103,51 @@ class BaseAPI:
     async def display(self, html=None, json=None, plotly=None, text=None):
         # base implementation works in maximum compatibility mode i.e. just prints
         if html:
-            print("HTML : ", html[:100])
+            # import traceback
+            # import inspect
+            # traceback.print_stack()
+            #
+            # # Get the current frame
+            # current_frame = inspect.currentframe()
+            #
+            # # Get the caller's frame (one level up)
+            # caller_frame = current_frame.f_back
+            #
+            # # Get information about the caller
+            # caller_info = inspect.getframeinfo(caller_frame)
+            #
+            # # Get the class that the method is being called on
+            # try:
+            #     # Try to get the class of the instance (self)
+            #     instance = caller_frame.f_locals['self']
+            #     class_name = instance.__class__.__name__
+            # except KeyError:
+            #     # If 'self' is not found, it might be a static method or a function
+            #     class_name = "Not in a class method"
+            #
+            # print(f"\nCaller Information:")
+            # print(f"Class: {class_name}")
+            # print(f"File: {caller_info.filename}")
+            # print(f"Function: {caller_info.function}")
+            # print(f"Line: {caller_info.lineno}")
+            print("BASE HTML : ", html[:100])
         if json:
-            print("JSON : ", json[:100])
+            print("BASE JSON : ", json[:100])
         if plotly:
-            print("Plotly was passed")
+            print("BASE Plotly was passed")
         if text:
-            print("Text : ", text)
+            print("BASE Text : ", text)
 
 
     async def display_in_chat(self, tracker_entry = None, text = None, html = None, plotly_obj = None,
             role = None, citations = None, index = None, flags = None):
         # base implementation works in maximum compatibility mode i.e. just prints
         if html:
-            print("HTML : ", html[:100])
+            print("BASE-CHAT HTML : ", html[:100])
         if plotly_obj:
-            print("Plotly was passed")
+            print("BASE-CHAT Plotly was passed")
         if text:
-            print("Text : ", text)
+            print("BASE-CHAT Text : ", text)
 
     async def datalog_to_tmp(self, message, write_mode = "a"):
         """
@@ -284,13 +312,6 @@ def _init_process_worker(plugin_id):
     _plugin_id = plugin_id
     _mode.set(2)
 
-    #     try:
-    #
-    #     except Exception as e:
-    #         api_logger.exception("Worker init function failed. Plugin will not be loaded")
-    #         abort_message = {"ABORT":"ABORT"}
-    #         socket.send(pickle.dumps(abort_message))
-
 
 def get_api():
     return _plugin_ctx.get()
@@ -299,9 +320,6 @@ def get_api():
 def _call_function_sync_process(name, plugin_name, req_id, args, kwargs, ):
     global _req_id
     _req_id.set(req_id)
-    # _identity.set(identity)
-    # api_obj = ProcessAPI(req_id, identity)
-    # _plugin_ctx.set(api_obj)
     func = get_function_entry(name, plugin_name)["pointer"]
     return_val = func(*args, **kwargs)
     return return_val
@@ -327,22 +345,12 @@ _plugin_ctx = contextvars.ContextVar('__plugin_api', default=BaseAPI(-1, -1))
 __fake_usr_data = {}
 _zmq_context = None
 _context = contextvars.ContextVar('_context', default={})
-# _socket = None
 _plugin_id = None
 _req_id = contextvars.ContextVar('_req_id', default=None)
 _identity = contextvars.ContextVar('_identity', default=None)
 _socket = contextvars.ContextVar('_socket', default=None)
 _mode = contextvars.ContextVar('_mode', default=0)
+_variables = contextvars.ContextVar('_variables', default={})
 
-# def _call_function_async(func, args, kwargs, api_obj=None, return_future = True):
 from rixaplugin.internal import executor, utils
 
-# set ctx vars for API
-# def _call_function(func, args, kwargs, request_id, identity, callstack_type : CallstackType):
-#     call_api = BaseAPI(request_id, identity)
-#     # if callstack_type & CallstackType.LOCAL:
-#     #     if callstack_type & CallstackType.ASYNCIO:
-#
-#     _plugin_ctx.set(call_api)
-#
-#     return _plugin_ctx.run(func, *args, **kwargs)

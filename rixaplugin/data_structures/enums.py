@@ -57,6 +57,14 @@ class CallstackType(AutoNumber):
 
 
 class Scope(AutoNumber):
+    """
+    Enum for defining the scope of a variable
+
+    Scope is inclusive i.e. USER is both USER and LOCAL. LOCAL however is just local
+    USER: Maximum scope, can be set or read by the user
+    SERVER: Can be set or read by the server i.e. a remote config file
+    LOCAL: No info will be sent over the network. However, value may still be retrieved from a config file
+    """
     USER = auto()
     LOCAL = auto()
     SERVER = auto()

@@ -12,7 +12,7 @@ import plotly.graph_objects as go
 from rixaplugin import variables as var
 
 
-latex_available = var.PluginVariable("LATEX_AVAILABLE", bool,default=False, readable=var.Scope.LOCAL)
+latex_available = var.PluginVariable("LATEX_AVAILABLE", bool,default=False, readable=var.Scope.USER)
 
 @plugfunc()
 def draw_feynman(feynman):
