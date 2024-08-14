@@ -165,7 +165,7 @@ async def _execute_code(ast_obj, api_obj):
     async def _code_visitor_callback(entry, args, kwargs):
         fut = await _execute(entry, args, kwargs, api_obj, return_future=True, return_time_estimate=False)
         try:
-            return await asyncio.wait_for(fut, timeout=5)
+            return await asyncio.wait_for(fut, timeout=settings.FUNCTION_CALL_TIMEOUT)
         except asyncio.TimeoutError:
             raise Exception(f"Execution of {entry['name']} in {entry['plugin_name']} timed out after {settings.FUNCTION_CALL_TIMEOUT} "
                             f"seconds. This timeout was detected by the FUNCTION_CALLING system."

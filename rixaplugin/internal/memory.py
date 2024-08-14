@@ -138,7 +138,7 @@ class PluginMemory:
         variables = {}
         # return variables in format {plugin_name: {var_name: var_dict}}
         for plugin in self.plugins.values():
-            all_plugin_variables = plugin["variables"]
+            all_plugin_variables = plugin.get("variables", {})
             plugin_variables = {}
             for var_name, var_dict in all_plugin_variables.items():
                 if var_dict["readable"] & read_scope:
