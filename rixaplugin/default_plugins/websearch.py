@@ -52,9 +52,5 @@ def tavily_search(query, search_depth="basic", max_results = 3,  include_raw_con
         "include_answer": include_answer,
         "include_raw_content": include_raw_content
     }
-    print(data)
     response = requests.post(url, headers=headers, json=data)
-    print(response)
-    print()
-    print(response.json())
     return response.json()

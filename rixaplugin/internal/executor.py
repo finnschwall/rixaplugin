@@ -96,6 +96,36 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
         asyncio.create_task(create_and_start_plugin_server(settings.DEFAULT_PLUGIN_SERVER_PORT,
                                                            use_auth=settings.USE_AUTH_SYSTEM, return_future=False))
 
+    if settings.AUTO_CONNECTIONS and False:
+        from rixaplugin.internal.networking import create_and_start_plugin_client
+        print("auto", settings.AUTO_CONNECTIONS)
+        for conn in settings.AUTO_CONNECTIONS:
+            print("Conn",conn)
+            split = conn.split("-")
+            if len(split) == 1:
+                address, port = split[0].split(":")
+            elif len(split) == 2:
+                address, port = split[0].split(":")
+            else:
+                raise Exception("Invalid connection string")
+            asyncio.create_task(create_and_start_plugin_client(address,
+                                                                  port,
+                                                                  use_auth=settings.USE_AUTH_SYSTEM,
+                                                                  return_future=False))
+
+    # if settings.AUTO_CONNECTIONS:
+    #     print("auto", settings.AUTO_CONNECTIONS)
+    #     for conn in settings.AUTO_CONNECTIONS:
+    #         print("Conn",conn)
+    #         split = conn.split("-")
+    #         if len(split) == 1:
+    #
+    #             print(split[0])
+    #         elif len(split) == 2:
+    #             print(split[0], split[1])
+    #         else:
+    #             raise Exception("Invalid connection string")
+
     _memory.mode = mode
     _memory.plugin_system_active = True
 

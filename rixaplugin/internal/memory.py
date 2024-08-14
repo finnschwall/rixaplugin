@@ -88,6 +88,7 @@ class PluginMemory:
         self.debug_mode = settings.DEBUG
         self.server = None
         self.main_thread_id = threading.get_ident()
+        self.auth = None
 
         self.tasks_in_system = 0
 

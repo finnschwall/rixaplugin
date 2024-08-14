@@ -400,10 +400,12 @@ class PluginServer(NetworkAdapter):
         self.last_accepted_key = None
 
         if use_curve:
-            auth = AsyncioAuthenticator(_memory.zmq_context)
-            auth.start()
-            auth.allow()
-            auth.configure_curve(domain='*', location=settings.AUTH_KEY_LOC)
+            if not _memory.auth:
+                auth = AsyncioAuthenticator(_memory.zmq_context)
+                auth.start()
+                auth.allow()
+                auth.configure_curve(domain='*', location=settings.AUTH_KEY_LOC)
+                _memory.auth = auth
             server_secret_file = os.path.join(settings.AUTH_KEY_LOC, "server.key_secret")
             server_public, server_secret = zmq.auth.load_certificate(server_secret_file)
             self.con.curve_secretkey = server_secret
@@ -475,20 +477,23 @@ async def create_and_start_plugin_client(server_address, port=2809, raise_on_con
 
 class PluginClient(NetworkAdapter):
 
-    def __init__(self, server_address, port, protocoll="tcp://", use_auth=True, manually_created=True):
+    def __init__(self, server_address, port, protocoll="tcp://", use_auth=True, manually_created=True,
+                 server_key_file_name="server.key", client_key_file_name="client.key_secret"):
         super().__init__(port, use_auth, manually_created=manually_created)
         self.full_address = f"{protocoll}{server_address}:{port}"
         self.con = _memory.add_client_connection(zmq.DEALER)
         if use_auth:
-            auth = AsyncioAuthenticator(_memory.zmq_context)
-            auth.start()
-            auth.allow('127.0.0.1')
-            auth.configure_curve(domain='*', location=settings.AUTH_KEY_LOC)
-            client_secret_file = os.path.join(settings.AUTH_KEY_LOC, "client.key_secret")
+            if not _memory.auth:
+                auth = AsyncioAuthenticator(_memory.zmq_context)
+                _memory.auth = auth
+                auth.start()
+                auth.allow('127.0.0.1')
+                auth.configure_curve(domain='*', location=settings.AUTH_KEY_LOC)
+            client_secret_file = os.path.join(settings.AUTH_KEY_LOC, client_key_file_name)
             client_public, client_secret = zmq.auth.load_certificate(client_secret_file)
             self.con.curve_secretkey = client_secret
             self.con.curve_publickey = client_public
-            server_public_file = os.path.join(settings.AUTH_KEY_LOC, "server.key")
+            server_public_file = os.path.join(settings.AUTH_KEY_LOC, server_key_file_name)
             server_public, _ = zmq.auth.load_certificate(server_public_file)
             self.con.curve_serverkey = server_public
 

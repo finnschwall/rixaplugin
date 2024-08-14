@@ -71,6 +71,13 @@ PLUGIN_DEFAULT_ADDRESS = config("PLUGIN_CLIENT_ADDRESS", cast=str, default="loca
 Default to which plugin system will connect/listen to.
 Not used outside of RIXA webserver or CLI.
 """
+AUTO_CONNECTIONS = config("AUTO_CONNECTIONS", default=None, cast=Csv())
+"""
+A list of addresses to which the plugin system will try to connect to on startup.
+
+Format: "address:port-tag"
+The tag is optional and can be used to automatically assign the plugin to a certain group.aaa
+"""
 
 TMP_DATA_LOG_FOLDER = config("TMP_DATA_LOG_FOLDER", default="/tmp/rixa_data_log")
 """
