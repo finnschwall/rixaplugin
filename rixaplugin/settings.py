@@ -51,7 +51,10 @@ except KeyError:
         #     f"The folder '{current_directory}' from which you started the server does not seem to be a RIXA working directory."
         #     f"Either change into a working dir or set the 'RIXA_WD' env var.")
 WORKING_DIRECTORY = os.path.abspath(config_dir)
-DEFAULT_PLUGIN_SERVER_PORT = 15000
+DEFAULT_PLUGIN_SERVER_PORT = config("DEFAULT_PLUGIN_SERVER_PORT", default=15000, cast=int)
+"""
+Default port on which the plugin server will listen.
+"""
 
 USE_AUTH_SYSTEM = config("USE_AUTH_SYSTEM", default=True, cast=bool)
 AUTH_KEY_LOC = config("AUTH_KEY_LOC", default=None)
@@ -84,6 +87,27 @@ TMP_DATA_LOG_FOLDER = config("TMP_DATA_LOG_FOLDER", default="/tmp/rixa_data_log"
 Folder for api.datalog_to_tmp
 """
 
+AUTO_IMPORT_PLUGINS = config("AUTO_IMPORT_PLUGINS", cast=Csv(), default='')
+"""
+List of plugins to be imported on startup from a package.
+Use the full path to the plugin e.g. for using the math plugin from rixaplugin.default_plugins use "rixaplugin.default_plugins.math".
+
+These plugins will all inherit the settings of the importing process.
+"""
+
+AUTO_IMPORT_PLUGINS_PATHS = config("AUTO_IMPORT_PLUGINS_PATHS", cast=Csv(), default='')
+"""
+List of paths to be searched for plugins to be imported on startup.
+
+Can point to a folder or a .py file.
+These plugins will all inherit the settings of the importing process.
+"""
+
+AUTO_APPLY_TAGS = config("AUTO_APPLY_TAGS", cast=Csv(), default='')
+"""
+List of tags-plugin pairs to be applied on startup. Will be applied last i.e. after connecting to other plugins.
+Does not apply to plugins that are manually imported or to connections that are manually established.
+"""
 
 
 LOG_REMOTE_EXCEPTIONS_LOCALLY = config("LOG_EXCEPTIONS_LOCALLY", default=True, cast=bool)

@@ -53,6 +53,23 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
         core_log.setLevel(logging.DEBUG)
     if not num_workers:
         num_workers = settings.DEFAULT_MAX_WORKERS
+
+    import_error = False
+    if settings.AUTO_IMPORT_PLUGINS:
+        for plugin in settings.AUTO_IMPORT_PLUGINS:
+            import importlib
+            try:
+                module = importlib.import_module(plugin)
+            except Exception as e:
+                import_error = True
+                core_log.error(f"Could not import {plugin}. Error: {e}")
+                continue
+        if not import_error:
+            core_log.info("All plugins imported successfully")
+
+    if settings.AUTO_IMPORT_PLUGINS_PATHS:
+        raise NotImplementedError()
+
     test_future = None
     _memory.event_loop = asyncio.get_event_loop()
     if mode & PluginModeFlags.THREAD and mode & PluginModeFlags.PROCESS:
@@ -96,35 +113,25 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
         asyncio.create_task(create_and_start_plugin_server(settings.DEFAULT_PLUGIN_SERVER_PORT,
                                                            use_auth=settings.USE_AUTH_SYSTEM, return_future=False))
 
-    if settings.AUTO_CONNECTIONS and False:
+    if settings.AUTO_CONNECTIONS:
         from rixaplugin.internal.networking import create_and_start_plugin_client
-        print("auto", settings.AUTO_CONNECTIONS)
         for conn in settings.AUTO_CONNECTIONS:
-            print("Conn",conn)
             split = conn.split("-")
             if len(split) == 1:
                 address, port = split[0].split(":")
+                key_name = None
             elif len(split) == 2:
                 address, port = split[0].split(":")
+                key_name = split[1]
             else:
                 raise Exception("Invalid connection string")
-            asyncio.create_task(create_and_start_plugin_client(address,
-                                                                  port,
-                                                                  use_auth=settings.USE_AUTH_SYSTEM,
-                                                                  return_future=False))
+            kwargs = {"use_auth":settings.USE_AUTH_SYSTEM, "return_future":False,"client_key_file_name":"server.key_secret",
+                      "raise_on_connection_failure":False}
+            if key_name:
+                kwargs["server_key_file_name"] = key_name + ".key"
 
-    # if settings.AUTO_CONNECTIONS:
-    #     print("auto", settings.AUTO_CONNECTIONS)
-    #     for conn in settings.AUTO_CONNECTIONS:
-    #         print("Conn",conn)
-    #         split = conn.split("-")
-    #         if len(split) == 1:
-    #
-    #             print(split[0])
-    #         elif len(split) == 2:
-    #             print(split[0], split[1])
-    #         else:
-    #             raise Exception("Invalid connection string")
+            asyncio.create_task(create_and_start_plugin_client(address, port, **kwargs))
+
 
     _memory.mode = mode
     _memory.plugin_system_active = True
@@ -138,6 +145,10 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
 
     if not os.path.exists(settings.TMP_DATA_LOG_FOLDER):
         os.makedirs(settings.TMP_DATA_LOG_FOLDER)
+
+    for i in settings.AUTO_APPLY_TAGS:
+        plugin, tag = i.split(":")
+        _memory.add_tag_to_plugin(plugin, tag)
 
     core_log.debug("Plugin system initialized")
 

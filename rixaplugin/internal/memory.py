@@ -36,6 +36,7 @@ def get_function_entry_by_name(name, plugin_name=None):
             raise FunctionNotFoundException(f"Plugin '{plugin_name}' found, but not function: '{name}'")
         return filtered_entries[0]
 
+
 def get_function_entry(function_name, plugin_id):
     plugin = _memory.plugins.get(plugin_id)
     if not plugin:
@@ -45,6 +46,7 @@ def get_function_entry(function_name, plugin_id):
             return i
     raise FunctionNotFoundException(function_name)
 
+
 def get_plugin_id(plugin_name):
     plugin_id = None
     for i in _memory.plugins.values():
@@ -52,6 +54,7 @@ def get_plugin_id(plugin_name):
             plugin_id = i["id"]
             break
     return plugin_id
+
 
 class PluginMemory:
     """Singleton class to store plugin information.
@@ -94,7 +97,7 @@ class PluginMemory:
 
         self.connected_clients = []
 
-        self.hash_base_str = str(sys.implementation) + str(sys.prefix)+ os.path.abspath(__file__)
+        self.hash_base_str = str(sys.implementation) + str(sys.prefix) + os.path.abspath(__file__)
         hash_object = hashlib.sha256(self.hash_base_str.encode())
         hex_dig = hash_object.hexdigest()
         self.ID = hex_dig[:16]
@@ -117,7 +120,7 @@ class PluginMemory:
             hash_object = hashlib.sha256(hash_str.encode())
             plugin_id = hash_object.hexdigest()[:16]
             signature_dict["plugin_id"] = id
-            plugin = {"name": signature_dict["plugin_name"], "functions": [signature_dict], "id": plugin_id, "tags":[],
+            plugin = {"name": signature_dict["plugin_name"], "functions": [signature_dict], "id": plugin_id, "tags": [],
                       "type": fn_type, "is_alive": True, "active_tasks": 0, "variables": {}}
             self.plugins[plugin_id] = plugin
 
@@ -130,11 +133,12 @@ class PluginMemory:
             hash_str = self.hash_base_str + plugin_var._plugin_name
             hash_object = hashlib.sha256(hash_str.encode())
             plugin_id = hash_object.hexdigest()[:16]
-            plugin = {"name": plugin_var._plugin_name, "variables": {plugin_var.name:plugin_var.to_dict()}, "id": plugin_id, "tags":[],
-                        "type": FunctionPointerType.LOCAL, "is_alive": True, "active_tasks": 0, "functions": []}
+            plugin = {"name": plugin_var._plugin_name, "variables": {plugin_var.name: plugin_var.to_dict()},
+                      "id": plugin_id, "tags": [],
+                      "type": FunctionPointerType.LOCAL, "is_alive": True, "active_tasks": 0, "functions": []}
             self.plugins[plugin_id] = plugin
 
-    def get_all_variables(self, read_scope : Scope = Scope.USER):
+    def get_all_variables(self, read_scope: Scope = Scope.USER):
         variables = {}
         # return variables in format {plugin_name: {var_name: var_dict}}
         for plugin in self.plugins.values():
@@ -147,7 +151,7 @@ class PluginMemory:
                 variables[plugin["name"]] = plugin_variables
         return variables
 
-    def add_plugin(self, plugin_dict, identity, remote_origin, origin_is_client=False, tags = None):
+    def add_plugin(self, plugin_dict, identity, remote_origin, origin_is_client=False, tags=None):
         if not self.allow_remote_functions:
             return
 
@@ -168,7 +172,7 @@ class PluginMemory:
                 del self.plugins[i["id"]]
                 self.function_list = [j for j in self.function_list if j["plugin_name"] != i["name"]]
             new_names.append(i["name"])
-            i["id"] = i["id"] #identity
+            i["id"] = i["id"]  # identity
             i["remote_id"] = identity
             i["remote_origin"] = remote_origin
             if tags:
@@ -179,7 +183,7 @@ class PluginMemory:
                 i["type"] |= FunctionPointerType.SERVER
             for j in i["functions"]:
                 j["type"] = i["type"]
-                j["id"] = i["id"]#identity
+                j["id"] = i["id"]  # identity
                 j["remote_id"] = identity
                 j["remote_origin"] = remote_origin
                 if tags:
@@ -253,6 +257,17 @@ class PluginMemory:
         else:
             core_log.error(f"Plugin '{plugin_name}' not found")
 
+    def add_tag_to_plugin(self, plugin_name, tag):
+        plugin = self.find_plugin_by_name(plugin_name)
+        if plugin:
+            plugin["tags"].append(tag)
+            for function in plugin["functions"]:
+                if not "tags" in function:
+                    function["tags"] = []
+                function["tags"].append(tag)
+        else:
+            core_log.error(f"Plugin '{plugin_name}' not found")
+
     def __repr__(self):
         return f"{self.__class__.__name__}({self.function_list!r})"
 
@@ -271,17 +286,18 @@ class PluginMemory:
         readable_str = "Plugin info:\n---------\n"
         for entry in self.get_plugins(scope):
             readable_str += self._pretty_print_plugin(entry, include_functions=include_functions,
-                                                      include_docstr=include_docstr, include_plugin_meta= include_plugin_meta)+"\n"
+                                                      include_docstr=include_docstr,
+                                                      include_plugin_meta=include_plugin_meta) + "\n"
         return readable_str
 
     def pretty_print_plugins(self, include_functions=True, include_docstr=True):
         readable_str = "Plugin info:\n---------\n"
         for name, entry in self.plugins.items():
             readable_str += self._pretty_print_plugin(entry, include_functions=include_functions,
-                                                      include_docstr=include_docstr)+"\n"
+                                                      include_docstr=include_docstr) + "\n"
         return readable_str
 
-    def _pretty_print_plugin(self, entry, include_functions=True, include_docstr=True, include_plugin_meta = True):
+    def _pretty_print_plugin(self, entry, include_functions=True, include_docstr=True, include_plugin_meta=True):
         readable_str = ""
         if include_plugin_meta:
             for i in entry:
@@ -298,7 +314,7 @@ class PluginMemory:
         #     for i in entry["functions"]:
         #         readable_str += f"\t{generate_python_doc(i, include_docstr=False)}\n"
         # entry = {i: entry[i] for i in entry if i != "functions"}
-        readable_str = entry["name"] +":\n"+readable_str#+pprint.pformat(entry, indent=4)
+        readable_str = entry["name"] + ":\n" + readable_str  # +pprint.pformat(entry, indent=4)
         return readable_str
 
     def pretty_print_plugin(self, plugin_name, include_docstr=True):
@@ -333,7 +349,7 @@ class PluginMemory:
 
             sendable_plugin["functions"] = [j for j in sendable_plugin["functions"] if
                                             not j["type"] & FunctionPointerType.LOCAL_ONLY]
-            #remove variables that are local read only
+            # remove variables that are local read only
             sendable_plugin["variables"] = {k: v for k, v in sendable_plugin["variables"].items() if v["writable"] != 0}
             sendable_dict[key] = sendable_plugin
 
@@ -342,6 +358,7 @@ class PluginMemory:
             val["functions"] = [j.copy() for j in val["functions"]]
             # val.pop("id", None)
             val.pop("remote_origin", None)
+            val.pop("remote_id", None)
             for j in val["functions"]:
                 j.pop("pointer", None)
                 j.pop("remote_id", None)
@@ -373,6 +390,8 @@ class PluginMemory:
                 if "exclusive_tags" in scope:
                     if j.get("tags") and any([i in j["tags"] for i in scope["exclusive_tags"]]):
                         continue
+                if "included_functions" in scope and j["name"] not in scope["included_functions"]:
+                    continue
                 return_funcs.append(j)
         if "force_include_plugin" in scope:
             for key, val in self.plugins.items():
@@ -437,10 +456,5 @@ class PluginMemory:
         PluginMemory._instance = None
         PluginMemory()
 
+
 _memory = PluginMemory()
-
-
-
-
-
-

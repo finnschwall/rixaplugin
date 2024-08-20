@@ -99,14 +99,11 @@ def draw_plot(function, x_range_start=-10, x_range_end=10):
     :param x_range_end:
     :return: Displays the plot
     """
-    # from rixaplugin.data_structures import rixa_exceptions
-    # raise rixa_exceptions.RemoteOfflineException("Plugin 'math' is currently unreachable")
     if "x" not in function:
         raise ValueError("Function must contain x as the main variable")
     x = sympy.symbols('x')
     y = sympy.sympify(function)
     x_vals = list(np.linspace(x_range_start, x_range_end, 200))
-    # use lambdify to generate y values
 
     func = lambdify(x, y)
     y_vals = [func(val) for val in x_vals]

@@ -67,7 +67,8 @@ async def run_server(debug):
     import rixaplugin
     from rixaplugin import settings
     init_plugin_system(PMF.LOCAL | PMF.THREAD, debug=debug)
-    server, future = await create_and_start_plugin_server(rixaplugin.settings.PLUGIN_DEFAULT_PORT,
+    print(rixaplugin.settings.DEFAULT_PLUGIN_SERVER_PORT)
+    server, future = await create_and_start_plugin_server(rixaplugin.settings.DEFAULT_PLUGIN_SERVER_PORT,
                                                           use_auth=settings.USE_AUTH_SYSTEM)
     await future
 

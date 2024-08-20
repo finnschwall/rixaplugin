@@ -257,6 +257,9 @@ class NetworkAdapter:
             if "request_info" in msg and msg["request_info"] == "plugin_signatures":
                 if "plugin_signatures" in msg:
                     ret["plugin_signatures"] = _memory.get_sendable_plugins(skip=msg["plugin_signatures"].keys())
+                    # from pprint import pp
+                    # pp(ret["plugin_signatures"], width=150)
+
                 else:
                     ret["plugin_signatures"] = _memory.get_sendable_plugins()
 
@@ -427,8 +430,10 @@ class PluginServer(NetworkAdapter):
 
 
 async def create_and_start_plugin_client(server_address, port=2809, raise_on_connection_failure=True,
-                                         return_future=False, use_auth=False):
-    client = PluginClient(server_address, port, manually_created=False, use_auth=use_auth)
+                                         return_future=False, use_auth=False, client_key_file_name="client.key_secret",
+                                         server_key_file_name="server.key"):
+    client = PluginClient(server_address, port, manually_created=False, use_auth=use_auth, client_key_file_name=client_key_file_name,
+                          server_key_file_name=server_key_file_name)
 
 
     try:
@@ -444,6 +449,7 @@ async def create_and_start_plugin_client(server_address, port=2809, raise_on_con
             if raise_on_connection_failure:
                 raise Exception(f"Failed to connect to {addr}")
             else:
+                network_log.error(f"Failed to connect to {addr}")
                 return None
         try:
             message = await client.con.recv(zmq.NOBLOCK)
@@ -505,10 +511,10 @@ class PluginClient(NetworkAdapter):
         _memory.delete_connection(self.con)
 
     def __str__(self):
-        return self.full_address
+        return self.full_address+"AAAAAAAAAAAAAARRRRRRRRRRRRR"
 
     def __repr__(self):
-        return self.full_address
+        return self.full_address +"AAAAAAAAAAAAAAAAAAAAAA"
 
     def reconnect(self):
         raise NotImplementedError()
