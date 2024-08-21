@@ -193,7 +193,7 @@ async def _execute_code(ast_obj, api_obj):
     else:
         ret_val = "NO RETURN VALUE"
     if not visitor.least_one_call:
-        raise NoEffectException()
+        raise NoEffectException("Did you miss a function call? Or parentheses? No calls were detected in the code.")
     return ret_val
 
 
