@@ -19,18 +19,42 @@ from rixaplugin.internal.utils import *
 import asyncio
 import zmq
 
+import pandas as pd
+
 msgpack_numpy.patch()
 # logging.basicConfig(level=logging.DEBUG)
 network_log = logging.getLogger("rixa.plugin_net")
 
-
-# network_log.setLevel(0)
-# network_log.addHandler(logging.FileHandler("network.log"))
-
-
 # bad hack but required for now
 # msgpack.packb = pickle.dumps
 # msgpack.unpackb = pickle.loads
+
+import msgpack_numpy as m
+
+# Register numpy support
+m.patch()
+
+
+def encode_custom(obj):
+    if isinstance(obj, pd.DataFrame):
+        return {
+            '__pandas_dataframe__': True,
+            'data': obj.to_dict(orient='split')
+        }
+    # elif isinstance(obj, Typo):
+    #     return {
+    #         '__typo__': True,
+    #         'text': obj.text
+    #     }
+    return obj
+
+
+def decode_custom(obj):
+    if '__pandas_dataframe__' in obj:
+        return pd.DataFrame(**obj['data'])
+    # elif '__typo__' in obj:
+    #     return Typo(obj['text'])
+    return obj
 
 
 def create_keys(name=None, metadata=None, server_keys=False):
@@ -95,7 +119,7 @@ class NetworkAdapter:
     async def send(self, identity, data, already_serialized=False):
         if not already_serialized:
             try:
-                data = msgpack.packb(data)
+                data = msgpack.packb(data,default=encode_custom)
                 # data = pickle.dumps(data)
             except Exception as e:
                 network_log.error(f"A message could not be serialized: {data}")
@@ -110,7 +134,7 @@ class NetworkAdapter:
     async def send_return(self, identity, request_id, ret):
         ret = {"HEAD": HeaderFlags.FUNCTION_RETURN, "return": ret, "request_id": request_id}
         try:
-            raw = msgpack.packb(ret)
+            raw = msgpack.packb(ret,default=encode_custom)
         except Exception as e:
             network_log.exception(f"Function return not serializable")
             await self.send_exception(identity, request_id, e)
@@ -203,7 +227,7 @@ class NetworkAdapter:
                 return
             try:
                 try:
-                    msg = msgpack.unpackb(message)
+                    msg = msgpack.unpackb(message, object_hook=decode_custom)
                 except:
                     network_log.warning("Received message is not in msgpack format!")
                     continue
@@ -453,7 +477,7 @@ async def create_and_start_plugin_client(server_address, port=2809, raise_on_con
                 return None
         try:
             message = await client.con.recv(zmq.NOBLOCK)
-            msg = msgpack.unpackb(message)
+            msg = msgpack.unpackb(message, object_hook=decode_custom)
             if msg["HEAD"] & HeaderFlags.ACKNOWLEDGE:
                 network_log.info("Connection established")
             else:
