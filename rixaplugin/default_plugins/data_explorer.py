@@ -211,7 +211,7 @@ def data_sampling(n=5,  query=None):
     """
     temp_df = apply_query(df, query)
     sample = temp_df.sample(n=min(n, len(temp_df)))
-    api.display(html=sample.to_html())
+    api.display(html=sample.to_html(justify="left", border=1, classes="table"))
     return sample
 
 @plugfunc()
