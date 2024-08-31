@@ -88,11 +88,11 @@ def _query_db(query, top_k=5, min_score=0.5, query_tags=None, max_chars=4000, us
 
 
 @plugfunc()
-def query_db_as_string(query, top_k=3, query_tags=None, min_score=0.5, max_chars=3500):
-    df, scores = _query_db(query, top_k, query_tags, min_score, max_chars)
+def query_db_as_string(query, top_k=3, min_score=0.5, query_tags=None,  max_chars=3500):
+    df, scores = _query_db(query, top_k, min_score, query_tags, max_chars)
     result = ""
     for i, row in df.iterrows():
-        result += f"TITLE: {row['document_title']}\nSUBTITLE: {row['subtitle']}\nID: {i}\n" \
+        result += f"TITLE: {row['document_title']}\nSUBTITLE: {row['subtitle'] if  'subtitle' in row else ''}\nID: {i}\n" \
                   f"CONTENT: {row['content']}\n\n"
     return result
 
@@ -101,6 +101,10 @@ def query_db_as_string(query, top_k=3, query_tags=None, min_score=0.5, max_chars
 def query_db(query, top_k=5, min_score=0.5, query_tags=None, max_chars=4000, username=None):
     filtered_df, scores = _query_db(query, top_k, min_score,  query_tags,max_chars, username)
     ret_df = filtered_df
+    # for i in ret_df.columns:
+    #     print(ret_df[i].value_counts())
+    ret_df = ret_df.fillna('')
     ret_df['tags'] = ret_df['tags'].apply(list)
     ret_df = ret_df.to_dict(orient='records')
+
     return ret_df, scores

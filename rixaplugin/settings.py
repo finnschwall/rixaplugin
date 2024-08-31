@@ -165,7 +165,7 @@ disabled_logger_conf = {i: {'level': 'WARNING'} for i in DISABLED_LOGGERS}
 
 LOG_FMT = config("LOG_FMT",
                  # default="%(levelname)s:%(name)s \"%(message)s\" %(asctime)s-(File \"%(filename)s\", line %(lineno)d)"
-                 default="%(levelname)s:%(name)s:%(session_id)s \"%(message)s\" (File \"%(filename)s\", line %(lineno)d)"
+                 default="""%(asctime)s-%(name)s-%(levelname)s '%(message)s' (File "%(pathname)s", line %(lineno)d)"""
                  )
 """Format to be used for logging. See https://docs.python.org/3/library/logging.html#logrecord-attributes
 There is an additional session_id attribute. It's behaviour is defined by LOG_UID_MODE
@@ -181,7 +181,7 @@ CONSOLE_USE_COLORS = config("CONSOLE_USE_COLORS", default=True, cast=bool)
 with control sequences. Use this to deactivate colors in the console.
 """
 
-LOG_TIME_FMT = config("LOG_TIME_FMT", default="%H:%M:%S")
+LOG_TIME_FMT = config("LOG_TIME_FMT", default="%H:%M:%S-%d.%m")
 
 GLOBAL_LOG_LEVEL = config("GLOBAL_LOG_LEVEL", default="INFO")
 RIXA_LOG_LEVEL = config("RIXA_LOG_LEVEL", default="DEBUG")

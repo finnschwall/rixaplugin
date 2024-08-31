@@ -2,6 +2,7 @@ import hashlib
 import importlib
 import os.path
 import pprint
+import subprocess
 import sys
 import threading
 
@@ -56,6 +57,23 @@ def get_plugin_id(plugin_name):
     return plugin_id
 
 
+def get_git_commit_hash():
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd = os.path.dirname(os.path.dirname(__file__)),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        commit_hash = result.stdout.strip()
+        return commit_hash
+    except subprocess.CalledProcessError as e:
+        core_log.warning("Could not get git commit hash")
+        return "UNKNOWN COMMIT HASH"
+
+
 class PluginMemory:
     """Singleton class to store plugin information.
 
@@ -106,6 +124,7 @@ class PluginMemory:
         self.max_queue = 10
         self.allow_remote_functions = True if settings.ACCEPT_REMOTE_PLUGINS != 0 else False
         self.remote_dummy_modules = {}
+        self.version = get_git_commit_hash()
 
     def add_function(self, signature_dict, id=None, fn_type=FunctionPointerType.LOCAL):
         if not id:
@@ -241,6 +260,9 @@ class PluginMemory:
             if i.get("name") == func_name:
                 return i
         return None
+
+    def get_all_plugin_names(self):
+        return [i["name"] for i in self.plugins.values()]
 
     def find_plugin_by_name(self, plugin_name):
         for i in self.plugins.values():

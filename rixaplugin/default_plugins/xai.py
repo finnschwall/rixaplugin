@@ -179,7 +179,7 @@ def similar_instance_retrieval(datapoint, n_neighbors=5, query=None):
     nn.fit(X_transformed)
     distances, indices = nn.kneighbors(preprocessor.transform(datapoint))
     similar_instances = X.iloc[indices[0][1:]]
-    api.display(html=similar_instances.to_html())
+    api.display(html=similar_instances.to_html(justify="left", border=1, classes="table"))
     return str(similar_instances)
 
 @plugfunc()

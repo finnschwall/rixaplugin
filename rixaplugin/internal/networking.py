@@ -194,7 +194,8 @@ class NetworkAdapter:
         # need to check whether this makes sense or if call without acknowledgement is possible
         answer = await utils.event_wait(event, 3)  # event.wait()
         if not answer:
-            _memory.plugins[plugin_entry["plugin_name"]]["is_alive"] = False
+            print(plugin_entry.keys())
+            _memory.plugins[plugin_entry["plugin_id"]]["is_alive"] = False
 
             del self.api_objs[request_id]
             # if api_obj.is_remote:
@@ -202,7 +203,7 @@ class NetworkAdapter:
             #     # await self.send_exception(api_obj.remote_id, request_id, Exception("Plugin offline"))
             # else:
             raise RemoteTimeoutException(
-                f"No acknowledgement for function call. Plugin '{plugin_entry['plugin_name']}' offline?",
+                f"No acknowledgement for function call. Plugin '{plugin_entry['plugin_name']}' is likely offline",
                 plugin_name=plugin_entry["plugin_name"])
         time_estimate = self.time_estimate[request_id]
         del self.time_estimate[request_id]
@@ -276,7 +277,7 @@ class NetworkAdapter:
     async def handle_remote_message(self, header_flags, msg, identity):
         if header_flags & HeaderFlags.ACKNOWLEDGE:
             network_log.debug(f"Acknowledging connection")
-            ret = {"HEAD": HeaderFlags.ACKNOWLEDGE | HeaderFlags.SERVER, "ID": _memory.ID}
+            ret = {"HEAD": HeaderFlags.ACKNOWLEDGE | HeaderFlags.SERVER, "ID": _memory.ID, "VERSION" : _memory.version}
             updated = None
             if "request_info" in msg and msg["request_info"] == "plugin_signatures":
                 if "plugin_signatures" in msg:
@@ -479,7 +480,12 @@ async def create_and_start_plugin_client(server_address, port=2809, raise_on_con
             message = await client.con.recv(zmq.NOBLOCK)
             msg = msgpack.unpackb(message, object_hook=decode_custom)
             if msg["HEAD"] & HeaderFlags.ACKNOWLEDGE:
+                if msg["VERSION"] != _memory.version:
+                    network_log.critical(
+                        f"Rixaplugin version mismatch. Server: {msg['VERSION'][:8]}, Client: {_memory.version[:8]}."
+                        f"Network protocol likely incompatible. Do not report bugs using this config!")
                 network_log.info("Connection established")
+
             else:
                 raise Exception(
                     "Connection established but failed to receive acknowledge message. This shouldn't happen.")
