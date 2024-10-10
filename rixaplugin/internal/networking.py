@@ -289,8 +289,11 @@ class NetworkAdapter:
                     ret["plugin_signatures"] = _memory.get_sendable_plugins()
 
             if "plugin_signatures" in msg:
+
                 if self.use_curve and self.is_server:
-                    tag = self.auth_dict[self.last_accepted_key]
+                    tag = self.auth_dict.get(self.last_accepted_key)
+                    if not tag:
+                        tag = "unknown"
                     updated = _memory.add_plugin(msg["plugin_signatures"], identity, self, origin_is_client=True, tags=[tag])
                 else:
                     updated = _memory.add_plugin(msg["plugin_signatures"], identity, self, origin_is_client=True)
@@ -427,6 +430,7 @@ class PluginServer(NetworkAdapter):
         self.is_server = True
         self.last_accepted_key = None
 
+        failed = False
         if use_curve:
             if not _memory.auth:
                 auth = AsyncioAuthenticator(_memory.zmq_context)
@@ -434,24 +438,28 @@ class PluginServer(NetworkAdapter):
                 auth.allow()
                 auth.configure_curve(domain='*', location=settings.AUTH_KEY_LOC)
                 _memory.auth = auth
-            server_secret_file = os.path.join(settings.AUTH_KEY_LOC, "server.key_secret")
-            server_public, server_secret = zmq.auth.load_certificate(server_secret_file)
-            self.con.curve_secretkey = server_secret
-            self.con.curve_publickey = server_public
-            self.con.curve_server = True
-            self.auth = auth
-            auth.configure_curve_callback("*", self)
-            auth_dict = {}
-            for file in os.listdir(settings.AUTH_KEY_LOC):
-                if file.endswith(".key"):
-                    public, secret = zmq.auth.load_certificate(os.path.join(settings.AUTH_KEY_LOC, file))
-                    auth_dict[public] = file.split(".")[0]
-            self.auth_dict = auth_dict
-
-        self.con.bind(address)
-        network_log.info(f"Server started at {address}")
-        self.first_connection = asyncio.Event()
-        utils.make_discoverable(_memory.ID, "localhost", port, list(_memory.plugins.keys()))
+            try:
+                server_secret_file = os.path.join(settings.AUTH_KEY_LOC, "server.key_secret")
+                server_public, server_secret = zmq.auth.load_certificate(server_secret_file)
+                self.con.curve_secretkey = server_secret
+                self.con.curve_publickey = server_public
+                self.con.curve_server = True
+                self.auth = auth
+                auth.configure_curve_callback("*", self)
+                auth_dict = {}
+                for file in os.listdir(settings.AUTH_KEY_LOC):
+                    if file.endswith(".key"):
+                        public, secret = zmq.auth.load_certificate(os.path.join(settings.AUTH_KEY_LOC, file))
+                        auth_dict[public] = file.split(".")[0]
+                self.auth_dict = auth_dict
+            except Exception as e:
+                failed=True
+                network_log.critical(f"Error loading server key files. Pluginserver will not start: {e}")
+        if not failed:
+            self.con.bind(address)
+            network_log.info(f"Server started at {address}")
+            self.first_connection = asyncio.Event()
+            utils.make_discoverable(_memory.ID, "localhost", port, list(_memory.plugins.keys()))
 
 
 async def create_and_start_plugin_client(server_address, port=2809, raise_on_connection_failure=True,
@@ -526,12 +534,15 @@ class PluginClient(NetworkAdapter):
                 auth.allow('127.0.0.1')
                 auth.configure_curve(domain='*', location=settings.AUTH_KEY_LOC)
             client_secret_file = os.path.join(settings.AUTH_KEY_LOC, client_key_file_name)
-            client_public, client_secret = zmq.auth.load_certificate(client_secret_file)
-            self.con.curve_secretkey = client_secret
-            self.con.curve_publickey = client_public
-            server_public_file = os.path.join(settings.AUTH_KEY_LOC, server_key_file_name)
-            server_public, _ = zmq.auth.load_certificate(server_public_file)
-            self.con.curve_serverkey = server_public
+            try:
+                client_public, client_secret = zmq.auth.load_certificate(client_secret_file)
+                self.con.curve_secretkey = client_secret
+                self.con.curve_publickey = client_public
+                server_public_file = os.path.join(settings.AUTH_KEY_LOC, server_key_file_name)
+                server_public, _ = zmq.auth.load_certificate(server_public_file)
+                self.con.curve_serverkey = server_public
+            except Exception as e:
+                network_log.error(f"Error loading client key files: {e}")
 
 
 
