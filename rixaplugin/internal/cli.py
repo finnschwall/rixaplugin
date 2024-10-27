@@ -67,9 +67,9 @@ async def run_server(debug):
     import rixaplugin
     from rixaplugin import settings
     init_plugin_system(PMF.LOCAL | PMF.THREAD, debug=debug)
-    print(rixaplugin.settings.DEFAULT_PLUGIN_SERVER_PORT)
     server, future = await create_and_start_plugin_server(rixaplugin.settings.DEFAULT_PLUGIN_SERVER_PORT,
                                                           use_auth=settings.USE_AUTH_SYSTEM)
+    print(f"Server started on {server.address}")
     await future
 
 
@@ -83,6 +83,7 @@ async def run_client(debug):
                                                           rixaplugin.settings.PLUGIN_DEFAULT_PORT,
                                                           use_auth=settings.USE_AUTH_SYSTEM,
                                                           return_future=True)
+    print(f"Client connected to {client.address}")
     await future
 
 
@@ -100,6 +101,7 @@ def setup_plugin_system(path, address=None, port=None, debug=None):
     import rixaplugin.settings as settings
     if port:
         settings.PLUGIN_DEFAULT_PORT = port
+        settings.DEFAULT_PLUGIN_SERVER_PORT = port
     if address:
         settings.PLUGIN_DEFAULT_ADDRESS = address
     if debug:

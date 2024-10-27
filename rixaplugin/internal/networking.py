@@ -112,6 +112,7 @@ class NetworkAdapter:
         self.is_initialized = False
         self.api_objs = {}
         self.auth = None
+        self.address = address
 
         if manually_created:
             network_log.warning("Manually created network adapter. No automatic resource management. Cleanup required!")
@@ -523,8 +524,9 @@ class PluginClient(NetworkAdapter):
 
     def __init__(self, server_address, port, protocoll="tcp://", use_auth=True, manually_created=True,
                  server_key_file_name="server.key", client_key_file_name="client.key_secret"):
-        super().__init__(port, use_auth, manually_created=manually_created)
-        self.full_address = f"{protocoll}{server_address}:{port}"
+        full_address = f"{protocoll}{server_address}:{port}"
+        super().__init__(port, use_auth, manually_created=manually_created, address=full_address)
+        self.full_address = full_address
         self.con = _memory.add_client_connection(zmq.DEALER)
         if use_auth:
             if not _memory.auth:

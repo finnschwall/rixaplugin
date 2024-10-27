@@ -166,14 +166,16 @@ You need to respond in JSON format and with this only. It needs to look like thi
     # return
     context = None
     context_str = None
+    print(enable_knowledge_retrieval)
+    print(preprocessor_json)
     if enable_knowledge_retrieval is True:
         try:
             context, scores = execute("query_db", args=[last_usr_msg["content"], 4], kwargs={"min_score": 0.5,
                                                                                              "max_chars": 5000})
             context_str = ""
-            for i in context:
-                context_str += f"ID: {i['index']}\nDOC TITLE: {i['document_title']}\nHEADER: {i['header']}\n" \
-                              f"CONTENT: {i['content']}\n"
+            for i in len(context["distances"][0]):
+                context_str += f"ID: {context['document_id'][0][i]}\nDOC TITLE: {context['document_title'][0][i]}\n" \
+                              f"CONTENT: {context['documents'][0][i]}\n"
         except Exception as e:
             api.show_message("Knowledge retrieval system faulty. No context available.")
             llm_logger.exception(f"Could not retrieve context from knowledge base")
@@ -181,7 +183,7 @@ You need to respond in JSON format and with this only. It needs to look like thi
     else:
         context_str = None
         llm.include_context_msg = False
-
+    print(context_str)
     if enable_function_calling:
         func_list = _memory.get_functions_as_str(user_api.scope, short=False)
         llm.include_function_msg = True
@@ -213,16 +215,12 @@ You need to respond in JSON format and with this only. It needs to look like thi
                 code_calls.append({"code": msg["code"]})
     convo_idx = 0 if len(tracker.tracker) == 0 else tracker.tracker[-1]["index"] + 1
     used_citations = []
-    if context:
-        for i in context:
-            if i["index"] in all_citations:
-                used_citations.append(i)
-                # replace citations with markdow link
-                # subtit = i["subtitle"].replace("\n", "/")
-                # total_content = re.sub(r"\{\{" + str(i["index"]) + r"\}\}",
-                #                        f"[[{i['document_title']}/{i['header']}]]({i['source']})", total_content)
-                total_content = re.sub(r"\{\{" + str(i["index"]) + r"\}\}",
-                                                              f"[[{i['document_title']}/{i['header']}]](javascript:showCitation({convo_idx},{i['index']}))", total_content)
+    # if context:
+    #     for i in context:
+    #         if i["index"] in all_citations:
+    #             used_citations.append(i)
+    #             total_content = re.sub(r"\{\{" + str(i["index"]) + r"\}\}",
+    #                                                           f"[[{context['document_title'][0][i]}/{i['header']}]](javascript:showCitation({convo_idx},{i['index']}))", total_content)
 
     code_str = ""
     if len(code_calls) == 1:
