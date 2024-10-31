@@ -33,27 +33,26 @@ import msgpack_numpy as m
 
 # Register numpy support
 m.patch()
-
-
+from pyalm.internal.state import ConversationTracker
 def encode_custom(obj):
     if isinstance(obj, pd.DataFrame):
         return {
             '__pandas_dataframe__': True,
             'data': obj.to_dict(orient='split')
         }
-    # elif isinstance(obj, Typo):
-    #     return {
-    #         '__typo__': True,
-    #         'text': obj.text
-    #     }
+    elif isinstance(obj, ConversationTracker):
+        return {
+            '__pyalm_conversation_tracker__': True,
+            'yaml': obj.to_yaml()
+        }
     return obj
 
 
 def decode_custom(obj):
     if '__pandas_dataframe__' in obj:
         return pd.DataFrame(**obj['data'])
-    # elif '__typo__' in obj:
-    #     return Typo(obj['text'])
+    elif '__pyalm_conversation_tracker__' in obj:
+        return ConversationTracker.from_yaml(obj['yaml'])
     return obj
 
 
@@ -120,7 +119,7 @@ class NetworkAdapter:
     async def send(self, identity, data, already_serialized=False):
         if not already_serialized:
             try:
-                data = msgpack.packb(data,default=encode_custom)
+                data = msgpack.packb(data, default=encode_custom)
                 # data = pickle.dumps(data)
             except Exception as e:
                 network_log.error(f"A message could not be serialized: {data}")
@@ -230,8 +229,8 @@ class NetworkAdapter:
             try:
                 try:
                     msg = msgpack.unpackb(message, object_hook=decode_custom)
-                except:
-                    network_log.warning("Received message is not in msgpack format!")
+                except Exception as e:
+                    network_log.exception("Received message is not in msgpack format!")
                     continue
                 if not isinstance(msg, dict):
                     network_log.warning("Received message is not a dictionary!")
@@ -283,8 +282,6 @@ class NetworkAdapter:
             if "request_info" in msg and msg["request_info"] == "plugin_signatures":
                 if "plugin_signatures" in msg:
                     ret["plugin_signatures"] = _memory.get_sendable_plugins(skip=msg["plugin_signatures"].keys())
-                    # from pprint import pp
-                    # pp(ret["plugin_signatures"], width=150)
 
                 else:
                     ret["plugin_signatures"] = _memory.get_sendable_plugins()

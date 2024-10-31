@@ -143,6 +143,16 @@ class PluginMemory:
                       "type": fn_type, "is_alive": True, "active_tasks": 0, "variables": {}}
             self.plugins[plugin_id] = plugin
 
+    def rename_plugin(self, old_name, new_name):
+        plugin_id = get_plugin_id(old_name)
+        if plugin_id:
+            self.plugins[plugin_id]["name"] = new_name
+            for i in self.plugins[plugin_id]["functions"]:
+                i["plugin_name"] = new_name
+        else:
+            core_log.error(f"Plugin '{old_name}' not found")
+
+
     def add_variable(self, plugin_var):
         plugin_id = get_plugin_id(plugin_var._plugin_name)
         if plugin_id:

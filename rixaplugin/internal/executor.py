@@ -37,12 +37,21 @@ async def _start_process_server(socket):
         if message[1] == "EXECUTE_FUNCTION":
             future = await execute(message[2], message[3], message[4], message[5], proc_api, True, message[6])
             future.add_done_callback(lambda fut: socket.send_multipart([identity, pickle.dumps(fut.result())]))
-        if message[1] == "API_FUNCTION":
+        elif message[1] == "EXECUTE_CODE":
+            try:
+                future = await execute_code(message[2], proc_api, True, message[3])
+                future.add_done_callback(lambda fut: socket.send_multipart([identity, pickle.dumps(fut.result())]))
+            except Exception as e:
+                socket.send_multipart([identity, pickle.dumps(e)])
+
+        elif message[1] == "API_FUNCTION":
             api_callable = getattr(proc_api, message[2])
             if proc_api.is_remote:
                 await api_callable(message[3], message[4])
             else:
                 await api_callable(*message[3], **message[4])
+        else:
+            raise Exception("Invalid proc message received on main thread. Process is dead!")
 
 
 def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_jupyter_messages=10):
@@ -238,7 +247,7 @@ async def execute_sync(entry, args, kwargs, api_obj, return_future):
     if _memory.mode & PluginModeFlags.THREAD:
         fun = functools.partial(api._call_function_sync, entry["pointer"], api_obj, args, kwargs)
     else:
-        fun = functools.partial(api._call_function_sync_process, entry["name"], entry["plugin_name"],
+        fun = functools.partial(api._call_function_sync_process, entry["name"], entry["plugin_id"],
                                 api_obj.request_id,
                                 args, kwargs)
     future = _memory.event_loop.run_in_executor(_memory.executor,
@@ -377,6 +386,7 @@ async def execute(function_name, plugin_name=None, args=None, kwargs=None, api_o
             else:
                 api_obj = api.BaseAPI(req_id, _memory.ID)
 
+
     plugin_entry = get_function_entry_by_name(function_name, plugin_name)
     utils.is_valid_call(plugin_entry, args, kwargs)
     return await _execute(plugin_entry, args, kwargs, api_obj, return_future=return_future,
@@ -439,6 +449,8 @@ class CountingProcessPoolExecutor(concurrent.futures.ProcessPoolExecutor):
             print('{}\t{}\t{}\t{}'.format(
                 num + 1, item.fn, item.args, item.kwargs,
             ))
+
+
 
     def get_max_task_count(self):
         return self._max_workers

@@ -3,6 +3,7 @@ https://www.youtube.com/watch?v=siwpn14IE7E
 """
 import contextvars
 import functools
+import inspect
 import os.path
 
 import zmq
@@ -300,11 +301,19 @@ def _init_thread_worker():
         func()
 
 
+
 def _init_process_worker(plugin_id):
     global _zmq_context, _socket, _plugin_id, _mode
     # worker_ctx = _context.get()
-    for func in _memory.worker_init:
+    for i, func in enumerate(_memory.worker_init):
         func()
+
+        # sig = inspect.signature(func)
+        # if 'worker_count' in sig.parameters:
+        #     func(i)
+        # else:
+        #     func()
+        # _counts[plugin_id] += 1
     _zmq_context = zmq.Context()
     socket = _zmq_context.socket(zmq.DEALER)
     _socket.set(socket)

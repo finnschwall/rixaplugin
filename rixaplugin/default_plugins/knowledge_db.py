@@ -17,7 +17,6 @@ settings.ACCEPT_REMOTE_PLUGINS = 0
 @worker_init()
 def worker_init():
     database.load_model()
-    print("Loaded embedding model")
 
 
 @plugfunc()
