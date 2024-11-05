@@ -1,5 +1,6 @@
 import base64
 import os
+import sys
 
 import sympy
 import plotly.express as px
@@ -12,7 +13,10 @@ import plotly.graph_objects as go
 from rixaplugin import variables as var
 
 
-latex_available = var.PluginVariable("LATEX_AVAILABLE", bool,default=False, readable=var.Scope.USER)
+latex_available = var.PluginVariable("LATEX_AVAILABLE", bool, default=False, readable=var.Scope.USER)
+
+import logging
+logger = logging.getLogger(__name__)
 
 @plugfunc()
 def draw_feynman(feynman):
@@ -39,7 +43,12 @@ def draw_feynman(feynman):
     latex_end = """
 \end{document}"""
     if not r"\feynmandiagram" in feynman and "feynmandiagram" in feynman:
-        feynman = feynman.replace("feynmandiagram", r"\feynmandiagram")
+            feynman = feynman.replace("feynmandiagram", r"\feynmandiagram")
+    if r"\begin{feynman}" in feynman:
+        if not r"\begin{tikzpicture}" in feynman:
+            feynman = feynman.replace(r"\begin{feynman}", r"\begin{tikzpicture}\begin{feynman}")
+            feynman = feynman.replace(r"\end{feynman}", r"\end{feynman}\end{tikzpicture}")
+
 
     latex_total = latex_start + feynman + latex_end
     id = str(hash(latex_total))
@@ -49,17 +58,33 @@ def draw_feynman(feynman):
         return
 
     try:
-        with open(f"tmp/temp.tex", "w") as f:
+        import os
+        if not os.path.exists("/tmp/rixa_tex"):
+            os.makedirs("/tmp/rixa_tex")
+        with open(f"/tmp/rixa_tex/temp.tex", "w") as f:
             f.write(latex_total)
-        sp.call(["lualatex", "-shell-escape", "-interaction=nonstopmode", f"temp.tex"], cwd="tmp", stdout=sp.DEVNULL, stderr=sp.DEVNULL)
-        with open(f"tmp/temp.png", "rb") as f:
+        # sp.call(["lualatex", "-shell-escape", "-interaction=errorstopmode", f"/tmp/rixa_tex/temp.tex"], cwd="/tmp/rixa_tex", stdout=sp.DEVNULL, stderr=sp.DEVNULL)
+        result = sp.run(
+            [
+                "lualatex",
+                #"-shell-escape",
+                "-halt-on-error",  # Stop on first error
+                "-interaction=nonstopmode",
+                "-file-line-error",  # Show file and line for errors
+                f"/tmp/rixa_tex/temp.tex"
+            ],
+            cwd="/tmp/rixa_tex",
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        with open(f"/tmp/rixa_tex/temp.png", "rb") as f:
             img_base64 = base64.b64encode(f.read()).decode()
-            print("displaying")
             api.display(html=f'<img src="data:image/png;base64,{img_base64}" style="background-color:white;height:100%; width:auto"/>')
-    except Exception as e:
-        print(e)
-        api.display(html=f"<h3>ERROR IN DRAWING DIAGRAM</h3><code>{feynman}</code>")
-        # api.display(html=f.read())
+    except sp.CalledProcessError as e:
+        with open(f"/tmp/rixa_tex/temp.log", "w") as f:
+            err_msg = f.read()
+        raise Exception(f"Error compiling latex. Tail of log: {err_msg[:1000]}")
 
 @plugfunc()
 def draw_plot_3D(function, xstart=-5, xend=5, ystart=-5,yend=5):
@@ -111,17 +136,17 @@ def draw_plot(function, x_range_start=-10, x_range_end=10):
     api.display(html=fig.to_html(include_plotlyjs=False, full_html=False))
 
 
-@plugfunc()
-def latexify(expression):
-    """
-    Convert an expression to latex
-
-    Latex will be automatically rendered in the output. Preferable over strings
-    Example: latexify("x**2+3") to convert x^2+3 to latex.
-    :param expression: Expression as a string
-    :return: Latex string
-    """
-    return latex(sympy.sympify(expression))
+# @plugfunc()
+# def latexify(expression):
+#     """
+#     Convert an expression to latex
+#
+#     Latex will be automatically rendered in the output. Preferable over strings
+#     Example: latexify("x**2+3") to convert x^2+3 to latex.
+#     :param expression: Expression as a string
+#     :return: Latex string
+#     """
+#     return latex(sympy.sympify(expression))
 
 
 @plugfunc()

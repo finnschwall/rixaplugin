@@ -31,7 +31,7 @@ def query_db_as_string(query, top_k=3, min_score=0.5, query_tags=None,  max_char
 
 
 @plugfunc()
-def query_db(query, collection="default", n_results=5, max_distance=0.7, max_chars=4000):
+def query_db(query, collection="default", n_results=5, max_distance=0.4, max_chars=5000):
     results = database.query_inverted(query, n_results=n_results, collection=collection,
                                       max_distance=max_distance, maximum_chars=max_chars)
     return results

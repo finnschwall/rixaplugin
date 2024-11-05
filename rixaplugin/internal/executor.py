@@ -24,6 +24,12 @@ PMF_DebugLocal = PluginModeFlags.LOCAL | PluginModeFlags.THREAD
 PMF_Server = PluginModeFlags.SERVER | PluginModeFlags.NETWORK | PluginModeFlags.THREAD
 
 
+def handle_return_process(fut, socket=None, identity=None):
+    try:
+        socket.send_multipart([identity, pickle.dumps(fut.result())])
+    except Exception as e:
+        socket.send_multipart([identity, pickle.dumps(e)])
+
 async def _start_process_server(socket):
     executor = _memory.executor
     while True:
@@ -40,7 +46,9 @@ async def _start_process_server(socket):
         elif message[1] == "EXECUTE_CODE":
             try:
                 future = await execute_code(message[2], proc_api, True, message[3])
-                future.add_done_callback(lambda fut: socket.send_multipart([identity, pickle.dumps(fut.result())]))
+
+                #future.add_done_callback(lambda fut: socket.send_multipart([identity, pickle.dumps(fut.result())]))
+                future.add_done_callback(lambda fut: handle_return_process(fut, socket, identity))
             except Exception as e:
                 socket.send_multipart([identity, pickle.dumps(e)])
 
@@ -90,10 +98,13 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
 
     if mode & PluginModeFlags.PROCESS:
         socket = _memory.zmq_context.socket(zmq.ROUTER)
-        socket.bind(f"ipc:///tmp/worker_{_memory.ID}.ipc")
-
+        try:
+            socket.bind(f"ipc:///tmp/worker_{_memory.ID}.ipc")
+        except Exception as e:
+            core_log.critical(f"IPC name not unique! Maybe this program was previously started without proper cleanup? {e}")
+            raise e
         fut = asyncio.create_task(_start_process_server(socket))
-
+        print(num_workers)
         _memory.executor = CountingProcessPoolExecutor(max_workers=num_workers, initializer=api._init_process_worker,
                                                        initargs=(_memory.ID,))
         fake_api = api.BaseAPI(0, 0)

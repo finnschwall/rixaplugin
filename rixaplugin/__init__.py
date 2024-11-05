@@ -40,8 +40,6 @@ async def _execute_code_and_await(code, api_obj, timeout):
     Helper function for synchronous execution of code in the plugin system.
     Use async_execute for proper async execution.
     """
-    print("Executing code")
-    print(code)
     future = async_execute_code(code, api_obj=api_obj, timeout=timeout, return_future=True)
     # This is somewhat puzzling. The result is only returned when awaited twice.
     # The problem is: I have no clue why
@@ -81,11 +79,8 @@ def execute(function_name, plugin_name=None, args=None, kwargs=None, timeout=30)
 
 
 def execute_code(code, timeout=30):
-    print("Attempting to execute code")
     api_obj = _api.get_api()
-    print("t1")
     procmode = _api._mode.get()
-    print(procmode)
     if procmode == 1:
         future = asyncio.run_coroutine_threadsafe(
             _execute_code_and_await(code, api_obj=api_obj, timeout=timeout), _memory.event_loop)

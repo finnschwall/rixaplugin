@@ -115,13 +115,13 @@ class PluginMemory:
 
         self.connected_clients = []
 
-        self.hash_base_str = str(sys.implementation) + str(sys.prefix) + os.path.abspath(__file__)
+        self.hash_base_str = str(sys.implementation) + str(sys.prefix) + os.path.abspath(__file__) + os.getcwd()
         hash_object = hashlib.sha256(self.hash_base_str.encode())
         hex_dig = hash_object.hexdigest()
         self.ID = hex_dig[:16]
 
         # self.ID = secrets.token_hex(8)
-        self.max_queue = 10
+        self.max_queue = settings.MAX_QUEUE_SIZE
         self.allow_remote_functions = True if settings.ACCEPT_REMOTE_PLUGINS != 0 else False
         self.remote_dummy_modules = {}
         self.version = get_git_commit_hash()
@@ -138,9 +138,10 @@ class PluginMemory:
             hash_str = self.hash_base_str + signature_dict["plugin_name"]
             hash_object = hashlib.sha256(hash_str.encode())
             plugin_id = hash_object.hexdigest()[:16]
-            signature_dict["plugin_id"] = id
+            signature_dict["plugin_id"] = plugin_id
             plugin = {"name": signature_dict["plugin_name"], "functions": [signature_dict], "id": plugin_id, "tags": [],
                       "type": fn_type, "is_alive": True, "active_tasks": 0, "variables": {}}
+
             self.plugins[plugin_id] = plugin
 
     def rename_plugin(self, old_name, new_name):

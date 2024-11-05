@@ -144,6 +144,9 @@ DEFAULT_MAX_WORKERS = config("DEFAULT_MAX_WORKERS", default=4, cast=int)
 """Default number of worker threads for a plugin server. This is the number of threads or processes that can execute plugin code.
 """
 
+MAX_QUEUE_SIZE = config("MAX_QUEUE_SIZE", default=3, cast=int)
+"""Maximum number of tasks in the worker pools. Submitting after will raise an exception."""
+
 LOG_FILE_TYPE = config("LOG_FILE_TYPE", default="none", cast=Choices(["none", "html", "txt"]))
 """Either none, html or txt. None means no log files are created. html supports color formatting while. 
 """
