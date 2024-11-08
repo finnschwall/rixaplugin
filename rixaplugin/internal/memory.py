@@ -417,15 +417,18 @@ class PluginMemory:
             for j in val["functions"]:
                 if "excluded_functions" in scope and j["name"] in scope["excluded_functions"]:
                     continue
-                if "inclusive_tags" in scope:
-                    if not j.get("tags") or not any([i in j["tags"] for i in scope["inclusive_tags"]]):
-                        continue
                 if "exclusive_tags" in scope:
                     if j.get("tags") and any([i in j["tags"] for i in scope["exclusive_tags"]]):
                         continue
-                if "included_functions" in scope and j["name"] not in scope["included_functions"]:
-                    continue
-                return_funcs.append(j)
+                if "inclusive_tags" in scope:
+                    if j.get("tags") and any([i in j["tags"] for i in scope["inclusive_tags"]]):
+                        return_funcs.append(j)
+                if "included_functions" in scope and j["name"] in scope["included_functions"]:
+                    return_funcs.append(j)
+                if "included_plugins" in scope and val["name"] in scope["included_plugins"]:
+                    return_funcs.append(j)
+
+
         if "force_include_plugin" in scope:
             for key, val in self.plugins.items():
                 if val["name"] in scope["force_include_plugin"]:

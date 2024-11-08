@@ -150,18 +150,27 @@ MAX_QUEUE_SIZE = config("MAX_QUEUE_SIZE", default=3, cast=int)
 LOG_FILE_TYPE = config("LOG_FILE_TYPE", default="none", cast=Choices(["none", "html", "txt"]))
 """Either none, html or txt. None means no log files are created. html supports color formatting while. 
 """
-if LOG_FILE_TYPE != "none" and logfile_path[0] != "/":
-    logfile_path = os.path.abspath(os.path.join(config_dir, logfile_path + f".{LOG_FILE_TYPE}"))
 
+if LOG_FILE_TYPE != "none" and logfile_path[0] != "/":
+    logfile_path_alternate = os.path.abspath(os.path.join(config_dir, logfile_path + f"ALTERNATE.{LOG_FILE_TYPE}"))
+    logfile_path = os.path.abspath(os.path.join(config_dir, logfile_path + f".{LOG_FILE_TYPE}"))
 DISABLED_LOGGERS = config("DISABLED_LOGGERS", cast=Csv(), default='')
 """Loggers that will be excluded on all outputs
 """
 
-DISABLED_LOGGERS += ['daphne.http_protocol', 'daphne.server', 'daphne.ws_protocol', 'django.channels.server',
+DISABLED_LOGGERS += ['daphne.http_protocol', 'daphne.server', 'daphne.ws_protocol',
                     'openai', "urllib3", "matplotlib", "sentence_transformers.SentenceTransformer",
                      "IPKernelApp", "ipykernel", "Comm", "ipykernel.comm", "httpcore", "httpx",
                      "Comm"]
 disabled_logger_conf = {i: {'level': 'WARNING'} for i in DISABLED_LOGGERS}
+
+REDIRECTED_LOGGERS = config("REDIRECTED_LOGGERS", cast=Csv(), default='')
+"""Loggers mentioned here will be sent to a separate file. Useful to e.g. separate django logs from plugin logs.
+"""
+REDIRECTED_LOGGERS += ["django.request", "django.security" ,"django.security.DisallowedHost", 'django.channels.server']
+
+redirected_logger_conf = {i: {'handlers': ['file_alternate'] if LOG_FILE_TYPE != "none" else ["console"],
+                              'propagate': False} for i in REDIRECTED_LOGGERS}
 # for i in [logging.getLogger(name) for name in logging.root.manager.loggerDict]:
 #     if i.name in DISABLED_LOGGERS:
 #         i.disabled = True
@@ -238,6 +247,15 @@ LOGGING = {
             'level': GLOBAL_LOG_LEVEL,
             'filters': ['RIXAFilter'],
             'formatter': 'RIXAFile',
+        } if LOG_FILE_TYPE != "none" else {'class': "logging.NullHandler"},
+        'file_alternate': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': MAX_LOG_SIZE * 1024,
+            'backupCount': 2,
+            'filename': logfile_path_alternate,
+            'level': GLOBAL_LOG_LEVEL,
+            'filters': ['RIXAFilter'],
+            'formatter': 'RIXAFile',
         } if LOG_FILE_TYPE != "none" else {'class': "logging.NullHandler"}
     },
     'loggers': {
@@ -250,6 +268,7 @@ LOGGING = {
 }
 if USE_RIXA_LOGGING:
     LOGGING['loggers'].update(disabled_logger_conf)
+    LOGGING['loggers'].update(redirected_logger_conf)
     logging.config.dictConfig(LOGGING)
     rixa_logger = logging.getLogger("rixa")
     rixa_logger.setLevel(RIXA_LOG_LEVEL)

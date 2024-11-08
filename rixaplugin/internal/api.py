@@ -101,7 +101,7 @@ class BaseAPI:
         else:
             self.scope = {}
 
-    async def display(self, html=None, json=None, plotly=None, text=None):
+    async def display(self, html=None, json=None, plotly=None, text=None, custom_msg=None):
         # base implementation works in maximum compatibility mode i.e. just prints
         if html:
             # import traceback

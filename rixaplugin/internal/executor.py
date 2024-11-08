@@ -313,7 +313,7 @@ async def _execute(plugin_entry, args=(), kwargs={}, api_obj=None, return_future
 
     elif plugin_entry["type"] & FunctionPointerType.REMOTE:
         if not _memory.plugins[plugin_entry["id"]]["is_alive"]:
-            raise Exception(f"{plugin_entry['plugin_name']} is currently unreachable.")
+            raise RemoteOfflineException(f"{plugin_entry['plugin_name']} is currently unreachable.")
         _memory.plugins[plugin_entry["id"]]["active_tasks"] += 1
 
         fut, est = await plugin_entry["remote_origin"].call_remote_function(plugin_entry, api_obj, args, kwargs,
