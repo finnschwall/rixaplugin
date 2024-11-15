@@ -439,19 +439,33 @@ class PluginMemory:
     def get_plugins(self, scope):
         return_plugins = []
         for key, val in self.plugins.items():
-            if "inclusive_tags" in scope:
-                if not val.get("tags") or not any([i in val["tags"] for i in scope["inclusive_tags"]]):
-                    continue
+            if val["is_alive"] is False:
+                continue
+            if "excluded_functions" in scope and val["name"] in scope["excluded_functions"]:
+                continue
             if "exclusive_tags" in scope:
                 if val.get("tags") and any([i in val["tags"] for i in scope["exclusive_tags"]]):
                     continue
-            if "excluded_plugins" in scope and val["name"] in scope["excluded_plugins"]:
-                continue
-            if "included_plugins" in scope and val["name"] not in scope["included_plugins"]:
-                continue
-            if val["is_alive"] is False:
-                continue
-            return_plugins.append(val)
+            if "inclusive_tags" in scope:
+                if val.get("tags") and any([i in val["tags"] for i in scope["inclusive_tags"]]):
+                    return_plugins.append(val)
+            if "included_functions" in scope and val["name"] in scope["included_functions"]:
+                return_plugins.append(val)
+            if "included_plugins" in scope and val["name"] in scope["included_plugins"]:
+                return_plugins.append(val)
+            # if "inclusive_tags" in scope:
+            #     if not val.get("tags") or not any([i in val["tags"] for i in scope["inclusive_tags"]]):
+            #         continue
+            # if "exclusive_tags" in scope:
+            #     if val.get("tags") and any([i in val["tags"] for i in scope["exclusive_tags"]]):
+            #         continue
+            # if "excluded_plugins" in scope and val["name"] in scope["excluded_plugins"]:
+            #     continue
+            # if "included_plugins" in scope and val["name"] not in scope["included_plugins"]:
+            #     continue
+            # if val["is_alive"] is False:
+            #     continue
+            # return_plugins.append(val)
         return return_plugins
 
     def get_functions_as_str(self, scope, short=False, include_docstr=True):

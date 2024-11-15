@@ -5,7 +5,7 @@ import asyncio
 import logging
 
 from rixaplugin import settings
-from rixaplugin.settings import DEBUG
+from rixaplugin.settings import DEBUG, VERBOSE_REQUEST_ID
 from rixaplugin.pylot.python_parsing import  generate_python_doc
 task_superviser_log = logging.getLogger("rixa.task_superviser")
 discover_log = logging.getLogger("rixa.plugin_discovery")
@@ -87,7 +87,7 @@ def identifier_from_signature(fname, args=[], kwargs={}):
     :param kwargs:
     :return: Unique identifier
     """
-    if DEBUG:
+    if VERBOSE_REQUEST_ID:
         args_str = str(args)[:10]
         kwargs_str = str(kwargs)[:10]
         signature = f"{fname}({args_str}, {kwargs_str})"

@@ -194,10 +194,11 @@ class NetworkAdapter:
         # need to check whether this makes sense or if call without acknowledgement is possible
         answer = await utils.event_wait(event, 3)  # event.wait()
         if not answer:
-            print(plugin_entry.keys())
             _memory.plugins[plugin_entry["plugin_id"]]["is_alive"] = False
-
-            del self.api_objs[request_id]
+            try:
+                del self.api_objs[request_id]
+            except:
+                pass
             # if api_obj.is_remote:
             #     api_obj.network_adapter.send_exception(api_obj.identity, request_id, Exception("Plugin offline"))
             #     # await self.send_exception(api_obj.remote_id, request_id, Exception("Plugin offline"))

@@ -15,6 +15,7 @@ async def modify_client_settings(update_dic):
     await api.get_api().display(custom_msg=json.dumps(default_dic, ensure_ascii=True))
 
 
+
 @plugfunc(local_only=True)
 async def send_message(msg, level="info"):
     await api.get_api().show_message(msg, theme=level)

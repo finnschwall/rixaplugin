@@ -51,6 +51,7 @@ except KeyError:
         #     f"The folder '{current_directory}' from which you started the server does not seem to be a RIXA working directory."
         #     f"Either change into a working dir or set the 'RIXA_WD' env var.")
 WORKING_DIRECTORY = os.path.abspath(config_dir)
+
 DEFAULT_PLUGIN_SERVER_PORT = config("DEFAULT_PLUGIN_SERVER_PORT", default=15000, cast=int)
 """
 Default port on which the plugin server will listen.
@@ -63,6 +64,9 @@ if not AUTH_KEY_LOC:
 
 
 DEBUG = config("DEBUG", default=True, cast=bool)
+VERBOSE_REQUEST_ID = config("VERBOSE_REQUEST_ID", default=False, cast=bool)
+"""Turns the request id from a hash to a readable string. This is useful for debugging but will lead to collisions.
+"""
 
 PLUGIN_DEFAULT_PORT = config("PLUGIN_SERVER_PORT", default=15000, cast=int)
 """
@@ -146,6 +150,11 @@ DEFAULT_MAX_WORKERS = config("DEFAULT_MAX_WORKERS", default=4, cast=int)
 
 MAX_QUEUE_SIZE = config("MAX_QUEUE_SIZE", default=3, cast=int)
 """Maximum number of tasks in the worker pools. Submitting after will raise an exception."""
+
+LOG_PROCESSPOOL = config("LOG_PROCESSPOOL", default=False, cast=bool)
+"""If true this will write all processpool activity into WORKING_DIRECTORY/log/processpool.csv
+Specifically it will log when a new task is started and when it is finished. It will additionally add the current queue size and number of active workers.
+"""
 
 LOG_FILE_TYPE = config("LOG_FILE_TYPE", default="none", cast=Choices(["none", "html", "txt"]))
 """Either none, html or txt. None means no log files are created. html supports color formatting while. 

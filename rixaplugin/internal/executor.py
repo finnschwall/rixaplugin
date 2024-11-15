@@ -1,10 +1,13 @@
 import asyncio
 import atexit
 import concurrent
+import os
 import pickle
 import time
 import types
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+
 import zmq
 
 from rixaplugin.data_structures.enums import PluginModeFlags, FunctionPointerType
@@ -26,7 +29,10 @@ PMF_Server = PluginModeFlags.SERVER | PluginModeFlags.NETWORK | PluginModeFlags.
 
 def handle_return_process(fut, socket=None, identity=None):
     try:
-        socket.send_multipart([identity, pickle.dumps(fut.result())])
+        res = fut.result()
+        socket.send_multipart([identity, pickle.dumps(res)])
+    except RemoteException as e:
+        socket.send_multipart([identity, pickle.dumps(e)])
     except Exception as e:
         socket.send_multipart([identity, pickle.dumps(e)])
 
@@ -445,14 +451,22 @@ class CountingProcessPoolExecutor(concurrent.futures.ProcessPoolExecutor):
         self._active_tasks = 0
         self.max_task_count = max_workers
         self.apis = {}
+        if settings.LOG_PROCESSPOOL:
+            if not os.path.exists(os.path.join(settings.WORKING_DIRECTORY, "log", "processpool.csv")):
+                with open(os.path.join(settings.WORKING_DIRECTORY, "log", "processpool.csv"), "w") as f:
+                    f.write("time;request_id;is_finished;active_workers;queued_tasks\n")
 
     def submit(self, fn, *args, **kwargs):
         proc_api = args[0]
         self.apis[proc_api.request_id] = proc_api
+        if settings.LOG_PROCESSPOOL:
+            with open(os.path.join(settings.WORKING_DIRECTORY, "log", "processpool.csv"), "a") as f:
+                f.write(f"{datetime.now().isoformat()};{proc_api.request_id};0;{self._active_tasks};{len(self._pending_work_items)}\n")
         future = super().submit(fn)
         self._active_tasks += 1
         future.add_done_callback(self._task_completed)
         future.request_id = proc_api.request_id
+
         return future
 
     def debug_print(self):
@@ -470,6 +484,9 @@ class CountingProcessPoolExecutor(concurrent.futures.ProcessPoolExecutor):
         self._active_tasks -= 1
         _memory.tasks_in_system -= 1
         asyncio.run_coroutine_threadsafe(self.remove_api(future.request_id), _memory.event_loop)
+        if settings.LOG_PROCESSPOOL:
+            with open(os.path.join(settings.WORKING_DIRECTORY, "log", "processpool.csv"), "a") as f:
+                f.write(f"{datetime.now().isoformat()};{future.request_id};1;{self._active_tasks};{len(self._pending_work_items)}\n")
 
     async def remove_api(self, request_id):
         await asyncio.sleep(1)

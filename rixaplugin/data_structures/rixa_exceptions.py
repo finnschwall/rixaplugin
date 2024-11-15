@@ -38,6 +38,9 @@ class RemoteException(Exception):
         self.traceback = traceback
         super().__init__(f"{type}: {message}\nRemote traceback:\n{traceback}")
 
+    def __reduce__(self):
+        return self.__class__, (self.type, self.original_message, self.traceback)
+
 
 class RemoteUnavailableException(Exception):
     """
