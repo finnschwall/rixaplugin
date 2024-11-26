@@ -110,7 +110,6 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
             core_log.critical(f"IPC name not unique! Maybe this program was previously started without proper cleanup? {e}")
             raise e
         fut = asyncio.create_task(_start_process_server(socket))
-        print(num_workers)
         _memory.executor = CountingProcessPoolExecutor(max_workers=num_workers, initializer=api._init_process_worker,
                                                        initargs=(_memory.ID,))
         fake_api = api.BaseAPI(0, 0)
@@ -256,6 +255,7 @@ async def execute_sync(entry, args, kwargs, api_obj, return_future):
     :param return_future:
     :return:
     """
+    print(f"Cur queue: {_memory.executor.get_queued_task_count()}, max queue: {_memory.max_queue}, active: {_memory.executor.get_active_task_count()}")
     if _memory.max_queue < _memory.executor.get_queued_task_count():
         raise QueueOverflowException(f"{entry['plugin_name']} has no available workers.")
     if not _memory.executor and _memory.plugin_system_active:

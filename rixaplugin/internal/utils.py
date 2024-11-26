@@ -3,6 +3,7 @@ import json
 import os
 import asyncio
 import logging
+import random
 
 from rixaplugin import settings
 from rixaplugin.settings import DEBUG, VERBOSE_REQUEST_ID
@@ -91,7 +92,7 @@ def identifier_from_signature(fname, args=[], kwargs={}):
         args_str = str(args)[:10]
         kwargs_str = str(kwargs)[:10]
         signature = f"{fname}({args_str}, {kwargs_str})"
-        signature = signature+":"+str(hash(signature))[1:5]
+        signature = signature+":"+str(hash(signature))[1:5]+":"+str(random.randint(0, 1000))
         return signature
     signature = fname
     for arg in args:
@@ -102,6 +103,7 @@ def identifier_from_signature(fname, args=[], kwargs={}):
         signature += str(k) + str(v)
     if len(kwargs) == 0:
         signature += "NOKWARGS"
+    signature+=str(random.randint(0, 1000))
     return hash(signature)
 
 

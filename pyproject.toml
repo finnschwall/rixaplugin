@@ -20,7 +20,8 @@ dependencies = [
     "msgpack",
     "msgpack-numpy",
     "python-decouple",
-    "psutil"
+    "psutil",
+    "pandas"
 ]
 [project.optional-dependencies]
 knowlede_db = [
