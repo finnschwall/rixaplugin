@@ -113,6 +113,10 @@ List of tags-plugin pairs to be applied on startup. Will be applied last i.e. af
 Does not apply to plugins that are manually imported or to connections that are manually established.
 """
 
+OVERRIDE_FUNCTION_SCOPE = config("OVERRIDE_FUNCTION_SCOPE", default=False, cast=bool)
+"""
+If true functions will always be available no matter what scope the API object has."""
+
 
 LOG_REMOTE_EXCEPTIONS_LOCALLY = config("LOG_EXCEPTIONS_LOCALLY", default=True, cast=bool)
 """Log exceptions (that occurred locally) but are meant for remote plugins to the local log stream

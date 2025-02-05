@@ -132,6 +132,9 @@ class BaseAPI:
             # print(f"Function: {caller_info.function}")
             # print(f"Line: {caller_info.lineno}")
             print("BASE HTML : ", html[:100])
+            print("\n\n-------\n")
+            print(html)
+            print("\n------\n\n")
         if json:
             print("BASE JSON : ", json[:100])
         if plotly:

@@ -222,7 +222,7 @@ async def _execute_code(ast_obj, api_obj):
     return ret_val
 
 
-async def execute_code(code, api_obj=None, return_future=True, timeout=30):
+async def execute_code(code, api_obj=None, return_future=True, timeout=30, scope=None):
     """Execute (a string) as code in the plugin system.
 
     This is not meant for normal programming, as functionality is severely limited.
@@ -230,9 +230,10 @@ async def execute_code(code, api_obj=None, return_future=True, timeout=30):
     """
     if not _memory.plugin_system_active:
         raise Exception("Plugin system not initialized")
-
     if api_obj is None:
         api_obj = api.BaseAPI(0, 0)
+        if scope:
+            api_obj.scope = scope
 
     ast_obj = ast.parse(code)
 
@@ -255,7 +256,6 @@ async def execute_sync(entry, args, kwargs, api_obj, return_future):
     :param return_future:
     :return:
     """
-    print(f"Cur queue: {_memory.executor.get_queued_task_count()}, max queue: {_memory.max_queue}, active: {_memory.executor.get_active_task_count()}")
     if _memory.max_queue < _memory.executor.get_queued_task_count():
         raise QueueOverflowException(f"{entry['plugin_name']} has no available workers.")
     if not _memory.executor and _memory.plugin_system_active:
@@ -358,7 +358,7 @@ async def _execute(plugin_entry, args=(), kwargs={}, api_obj=None, return_future
 
 
 async def execute(function_name, plugin_name=None, args=None, kwargs=None, api_obj=None, return_future=False,
-                  return_time_estimate=False, timeout=30):
+                  return_time_estimate=False, timeout=30, scope=None):
     """
     Execute a function in the plugin system.
 
@@ -374,6 +374,7 @@ async def execute(function_name, plugin_name=None, args=None, kwargs=None, api_o
         return_future (bool, optional): If True, the function will return a future of the function call. Defaults to False.
         return_time_estimate (bool, optional): If True, the function will return a time estimate of the function call. Defaults to False.
         timeout (int, optional): The maximum time to wait for the function call to complete. Defaults to 10.
+        scope (dict, optional): Manual scope if no API obj is provided. Will set scope for constructed API object. Defaults to None.
 
     Raises:
         Exception: If the plugin system is not initialized.
@@ -399,11 +400,9 @@ async def execute(function_name, plugin_name=None, args=None, kwargs=None, api_o
         else:
             req_id = utils.identifier_from_signature(function_name, args, kwargs)
             if _memory.mode & PluginModeFlags.JUPYTER:
-                api_obj = api.JupyterAPI(req_id, _memory.ID)
+                api_obj = api.JupyterAPI(req_id, _memory.ID, scope=scope)
             else:
-                api_obj = api.BaseAPI(req_id, _memory.ID)
-
-
+                api_obj = api.BaseAPI(req_id, _memory.ID, scope=scope)
     plugin_entry = get_function_entry_by_name(function_name, plugin_name)
     utils.is_valid_call(plugin_entry, args, kwargs)
     return await _execute(plugin_entry, args, kwargs, api_obj, return_future=return_future,

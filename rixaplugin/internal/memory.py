@@ -406,7 +406,13 @@ class PluginMemory:
         return sendable_dict
 
     def get_functions(self, scope):
-        return_funcs = []
+        if settings.OVERRIDE_FUNCTION_SCOPE:
+            return_funcs = []
+            for key, val in self.plugins.items():
+                for j in val["functions"]:
+                    return_funcs.append(j)
+            return return_funcs
+        return_funcs = {}
         for key, val in self.plugins.items():
             if "excluded_plugins" in scope and val["name"] in scope["excluded_plugins"]:
                 continue
@@ -422,19 +428,57 @@ class PluginMemory:
                         continue
                 if "inclusive_tags" in scope:
                     if j.get("tags") and any([i in j["tags"] for i in scope["inclusive_tags"]]):
-                        return_funcs.append(j)
+                        key_tuple = (j["name"], j["plugin_name"], j["plugin_id"], j["description"])
+                        return_funcs[key_tuple] = j
                 if "included_functions" in scope and j["name"] in scope["included_functions"]:
-                    return_funcs.append(j)
+                    key_tuple = (j["name"], j["plugin_name"], j["plugin_id"], j["description"])
+                    return_funcs[key_tuple] = j
                 if "included_plugins" in scope and val["name"] in scope["included_plugins"]:
-                    return_funcs.append(j)
-
+                    key_tuple = (j["name"], j["plugin_name"], j["plugin_id"], j["description"])
+                    return_funcs[key_tuple] = j
 
         if "force_include_plugin" in scope:
             for key, val in self.plugins.items():
                 if val["name"] in scope["force_include_plugin"]:
                     for j in val["functions"]:
-                        return_funcs.append(j)
-        return return_funcs
+                        key_tuple = (j["name"], j["plugin_name"], j["plugin_id"], j["description"])
+                        return_funcs[key_tuple] = j
+
+        return list(return_funcs.values())
+
+    # def get_functions(self, scope):
+    #     return_funcs = []
+    #     for key, val in self.plugins.items():
+    #         if "excluded_plugins" in scope and val["name"] in scope["excluded_plugins"]:
+    #             continue
+    #         if "included_plugins" in scope and val["name"] not in scope["included_plugins"]:
+    #             continue
+    #         if val["is_alive"] is False:
+    #             continue
+    #         for j in val["functions"]:
+    #             if "excluded_functions" in scope and j["name"] in scope["excluded_functions"]:
+    #                 continue
+    #             if "exclusive_tags" in scope:
+    #                 if j.get("tags") and any([i in j["tags"] for i in scope["exclusive_tags"]]):
+    #                     continue
+    #             if "inclusive_tags" in scope:
+    #                 if j.get("tags") and any([i in j["tags"] for i in scope["inclusive_tags"]]):
+    #                     return_funcs.append(j)
+    #             if "included_functions" in scope and j["name"] in scope["included_functions"]:
+    #                 return_funcs.append(j)
+    #             if "included_plugins" in scope and val["name"] in scope["included_plugins"]:
+    #                 return_funcs.append(j)
+    #
+    #
+    #     if "force_include_plugin" in scope:
+    #         for key, val in self.plugins.items():
+    #             if val["name"] in scope["force_include_plugin"]:
+    #                 for j in val["functions"]:
+    #                     return_funcs.append(j)
+    #     return return_funcs
+
+
+
 
     def get_plugins(self, scope):
         return_plugins = []

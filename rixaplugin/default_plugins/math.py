@@ -2,6 +2,7 @@ import base64
 import os
 import sys
 
+import requests
 import sympy
 import plotly.express as px
 from rixaplugin.decorators import plugfunc
@@ -11,12 +12,70 @@ import numpy as np
 import subprocess as sp
 import plotly.graph_objects as go
 from rixaplugin import variables as var
-
+import logging
 
 latex_available = var.PluginVariable("LATEX_AVAILABLE", bool, default=False, readable=var.Scope.USER)
+wolfram_appid = var.PluginVariable("WOLFRAM_APPID", str)
 
-import logging
+
 logger = logging.getLogger(__name__)
+
+
+@plugfunc()
+def query_wolfram_alpha(input_query: str):
+    """
+    Query the Wolfram|Alpha LLM API. Has the same functionality as wolfram alpha.
+
+    This sends a natural language query and returns a text and possibly links to images of plots.
+    Use this only for queries that are not covered by any of the other available functions (e.g do not plot x2 using this. Do not query for data that likely is included in the RAG db.)
+
+    The wolfram api usually returns images, plots or similar in the form of links. Use the display function to show these.
+
+    :param input_query: The natural language query to be processed by Wolfram|Alpha. This should be a single-line string, simplified to
+                        keywords whenever possible (e.g., "France population" instead of "How many people live in France?").
+    :type input_query: str
+
+    :param maxchars: The maximum number of characters to return in the response. Default is 6800. Use this to limit the response size.
+    :type maxchars: int, optional
+^
+    :returns: text
+
+    :raises HTTP 501: The input could not be interpreted. Check for misspellings or formatting issues.
+    :raises HTTP 400: The input parameter is missing or incorrect.
+
+    :Example Usage:
+
+    >>> query_wolfram_alpha("10 densest elemental metals", maxchars=500)
+    """
+    maxchars: int = 6800
+    appid = wolfram_appid.get()
+
+    base_url = "https://www.wolframalpha.com/api/v1/llm-api"
+
+    # Prepare the query parameters
+    params = {
+        "appid": appid,
+        "input": input_query,
+        "maxchars": maxchars,
+    }
+
+    response = requests.get(base_url, params=params)
+
+    if response.status_code == 501:
+        raise ValueError(f"Wolfram|Alpha could not interpret the input. Suggested inputs: {response.text}")
+    elif response.status_code == 400:
+        raise ValueError("Missing or incorrect input parameter. Check your query syntax.")
+    elif response.status_code == 403:
+        if "Invalid appid" in response.text:
+            raise ValueError("Invalid AppID. Check your AppID and try again.")
+        elif "Appid missing" in response.text:
+            raise ValueError("No AppID provided. Include your AppID in the request.")
+    elif response.status_code != 200:
+        raise ValueError(f"Unexpected error: {response.status_code} - {response.text}")
+
+    return response.text
+
+
 
 @plugfunc()
 def draw_feynman(feynman):
@@ -25,6 +84,8 @@ def draw_feynman(feynman):
 
     Pay special attention with the argument. Use triple quotes with r prefix to avoid escaping issues.
     This method does not raise any exceptions when the diagram is not valid.
+
+    This only displays the diagram. It does not return anything.
 
     Example:
     Electron-positron to muon-antimuon via photon
@@ -91,6 +152,8 @@ def draw_plot_3D(function, xstart=-5, xend=5, ystart=-5,yend=5):
     """
     Draw a 3D plot of a function
 
+    This returns nothing, it immediately displays the plot.
+
     Example: draw_plot_3D("x**2+y**2")
     Same rules as for draw_plot apply here!
     :return:
@@ -105,7 +168,7 @@ def draw_plot_3D(function, xstart=-5, xend=5, ystart=-5,yend=5):
     x, y = np.mgrid[xstart:xend:res, ystart:yend:res]
     z = lambd_expr(x, y)
     fig = go.Figure(data=[go.Surface(x=x, y=y, z=z)])
-    api.display(html=fig.to_html(include_plotlyjs=False, full_html=False))
+    api.display(html="<!--PLOT3D-->"+fig.to_html(include_plotlyjs=False, full_html=False))
 
 
 
@@ -113,6 +176,8 @@ def draw_plot_3D(function, xstart=-5, xend=5, ystart=-5,yend=5):
 def draw_plot(function, x_range_start=-10, x_range_end=10):
     """
     Draw a plot of a function that depends on x
+
+    This returns nothing, it immediately displays the plot.
 
     Example: draw_plot("x**2+3", -10, 10)
     Variables other than x will not be recognized.
@@ -133,92 +198,112 @@ def draw_plot(function, x_range_start=-10, x_range_end=10):
     func = lambdify(x, y)
     y_vals = [func(val) for val in x_vals]
     fig = px.line(x=x_vals, y=y_vals)
-    api.display(html=fig.to_html(include_plotlyjs=False, full_html=False))
+    api.display(html="<!--PLOT2D-->"+fig.to_html(include_plotlyjs=False, full_html=False))
+
+
 
 
 # @plugfunc()
-# def latexify(expression):
+# def solve_equation(equation):
 #     """
-#     Convert an expression to latex
+#     Solve an equation of the form f(x)=0
 #
-#     Latex will be automatically rendered in the output. Preferable over strings
-#     Example: latexify("x**2+3") to convert x^2+3 to latex.
-#     :param expression: Expression as a string
-#     :return: Latex string
+#     Example: solve_equation("x**2-4") to solve x^2=4
+#     :param equation: Equation as a string
+#     :return: Solution as a list
 #     """
-#     return latex(sympy.sympify(expression))
+#     x = sympy.symbols('x')
+#     eq = sympy.sympify(equation)
+#     sol = sympy.solve(eq, x)
+#     return sol
+
+
+# @plugfunc()
+# def differentiate(function):
+#     """
+#     Differentiate a function
+#
+#     Example: differentiate("x**2+3") to differentiate x^2+3
+#     :param function: Function as a string
+#     :return: Derivative as a latex string
+#     """
+#     x = sympy.symbols('x')
+#     y = sympy.sympify(function)
+#     dy_dx = sympy.diff(y, x)
+#     return str(dy_dx)
+
+
+# @plugfunc()
+# def integrate(function):
+#     """
+#     Integrate a function
+#
+#     Example: integrate("x**2+3") to integrate x^2+3
+#     :param function: Function as a string
+#     :return: Integral as a latex string
+#     """
+#     x = sympy.symbols('x')
+#     y = sympy.sympify(function)
+#     integral = sympy.integrate(y, x)
+#     return str(integral)
+
+
+# @plugfunc()
+# def simplify_expression(expression):
+#     """
+#     Simplify an expression
+#
+#     Example: simplify_expression("x**2+2*x+1") to simplify x^2+2x+1
+#     :param expression: Expression as a string
+#     :return: Simplified expression as a latex string
+#     """
+#     x = sympy.symbols('x')
+#     expr = sympy.sympify(expression)
+#     simplified = sympy.simplify(expr)
+#     return str(simplified)
 
 
 @plugfunc()
-def solve_equation(equation):
-    """
-    Solve an equation of the form f(x)=0
-
-    Example: solve_equation("x**2-4") to solve x^2=4
-    :param equation: Equation as a string
-    :return: Solution as a list
-    """
-    x = sympy.symbols('x')
-    eq = sympy.sympify(equation)
-    sol = sympy.solve(eq, x)
-    return sol
-
-
-@plugfunc()
-def differentiate(function):
-    """
-    Differentiate a function
-
-    Example: differentiate("x**2+3") to differentiate x^2+3
-    :param function: Function as a string
-    :return: Derivative as a latex string
-    """
-    x = sympy.symbols('x')
-    y = sympy.sympify(function)
-    dy_dx = sympy.diff(y, x)
-    return str(dy_dx)
-
-
-@plugfunc()
-def integrate(function):
-    """
-    Integrate a function
-
-    Example: integrate("x**2+3") to integrate x^2+3
-    :param function: Function as a string
-    :return: Integral as a latex string
-    """
-    x = sympy.symbols('x')
-    y = sympy.sympify(function)
-    integral = sympy.integrate(y, x)
-    return str(integral)
-
-
-@plugfunc()
-def simplify_expression(expression):
-    """
-    Simplify an expression
-
-    Example: simplify_expression("x**2+2*x+1") to simplify x^2+2x+1
-    :param expression: Expression as a string
-    :return: Simplified expression as a latex string
-    """
-    x = sympy.symbols('x')
-    expr = sympy.sympify(expression)
-    simplified = sympy.simplify(expr)
-    return str(simplified)
-
-
-@plugfunc()
-def evaluate(expression):
+def evaluate(expression, return_float=False):
     """
     Evaluate an expression
 
-    Example: evaluate("2^4+1") returns 17
+    Use this for accurate numerical evaluation of expressions. Simplification will be applied automatically.
+    You can use float() to convert the result to a float.
+
+    Example: evaluate("2^4*x+3*x") returns 19x
+    evaluate("sin^2(x)+cos^2(x)") returns 1
+    evaluate("sin(45^4)", return_float=True) returns -0.9973979699962756
+
+
     :param expression:
+    :param return_float: If True, returns a float. Otherwise, returns a string. Will raise TypeError if expression contains symbols
     :return: Expression or number
     """
-    return str(sympy.sympify(expression))
+    if return_float:
+        return float(sympy.simplify(expression))
+    return str(sympy.simplify(expression))
+    # return str(sympy.sympify(expression))
+
+@plugfunc()
+def display(url, is_image=False):
+    """
+    Display an URl or image
+
+    Uses the built in dashboard functionality to display the URL in an iframe or image.
+    This will display the object as a separate chat message, that the user can e.g. maximize, compare etc.
+
+    Use this e.g. when a user requests to see a plot from the wolfram API, to ensure a consistent experience with draw_plot.
+
+    Example: display("https://www.google.com")
+    :param url: URL as a string
+    :return:
+    """
+    if is_image:
+        api.display(html=f'<img src="{url}" style="width:100%; height:100%;"/>')
+    else:
+        api.display(html=f'<iframe src="{url}" style="width:100%; height:100%;"></iframe>')
+
 
 # @plugfunc()
 # def calculate_limit(function, x_val, direction="both"):

@@ -319,7 +319,6 @@ class NetworkAdapter:
 
 
         elif header_flags & HeaderFlags.FUNCTION_CALL:
-            print("REC MSG")
             try:
                 asyncio.create_task(execute_networked(
                     msg["func_name"], msg["plugin_name"], msg["plugin_id"], msg["args"], msg["kwargs"], msg["oneway"],
@@ -329,7 +328,6 @@ class NetworkAdapter:
             except FunctionNotFoundException as e:
                 ret = {"HEAD": HeaderFlags.FUNCTION_NOT_FOUND, "request_id": msg["request_id"]}
                 await self.send(identity, ret)
-            print("REC MSG END")
         elif header_flags & HeaderFlags.API_CALL:
             request_id = msg.get("request_id")
             api_obj = self.api_objs.get(request_id)
@@ -347,7 +345,6 @@ class NetworkAdapter:
 
         elif header_flags & HeaderFlags.FUNCTION_RETURN:
             request_id = msg.get("request_id")
-            print(f"REC MSG RETURN {request_id}")
             asyncio.create_task(self.trigger_api_deletion(request_id))
             if request_id in self.pending_requests:
                 if not self.pending_requests[request_id]:
