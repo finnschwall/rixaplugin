@@ -96,6 +96,7 @@ class BaseAPI:
         self.identity = identity
         self.is_remote = False
         self.plugin_variables = {}
+        self.state = {}
         if scope:
             self.scope = scope
         else:
@@ -131,16 +132,13 @@ class BaseAPI:
             # print(f"File: {caller_info.filename}")
             # print(f"Function: {caller_info.function}")
             # print(f"Line: {caller_info.lineno}")
-            print("BASE HTML : ", html[:100])
-            print("\n\n-------\n")
-            print(html)
-            print("\n------\n\n")
+            print("CALLED BASE_API.display with HTML:\n", html[:100])
         if json:
-            print("BASE JSON : ", json[:100])
+            print("CALLED BASE_API.display with JSON:\n", json[:100])
         if plotly:
-            print("BASE Plotly was passed")
+            print("BASE_API Plotly was passed")
         if text:
-            print("BASE Text : ", text)
+            print("CALLED BASE_API.display with TEXT:\n", text)
 
 
     async def display_in_chat(self, tracker_entry = None, text = None, html = None, plotly_obj = None,
@@ -242,11 +240,13 @@ class RemoteAPI(BaseAPI):
     the server.
     """
 
-    def __init__(self, request_id, identity, network_adapter, scope=None):
+    def __init__(self, request_id, identity, network_adapter, scope=None, plugin_variables=None, state=None):
         self.request_id = request_id
         self.identity = identity
         self.is_remote = True
         self.network_adapter = network_adapter
+        self.plugin_variables = {} if plugin_variables is None else plugin_variables
+        self.state = {} if state is None else state
         if scope:
             self.scope = scope
         else:
@@ -310,13 +310,6 @@ def _init_process_worker(plugin_id):
     # worker_ctx = _context.get()
     for i, func in enumerate(_memory.worker_init):
         func()
-
-        # sig = inspect.signature(func)
-        # if 'worker_count' in sig.parameters:
-        #     func(i)
-        # else:
-        #     func()
-        # _counts[plugin_id] += 1
     _zmq_context = zmq.Context()
     socket = _zmq_context.socket(zmq.DEALER)
     _socket.set(socket)
@@ -329,12 +322,17 @@ def get_api():
     return _plugin_ctx.get()
 
 
-def _call_function_sync_process(name, plugin_name, req_id, args, kwargs, ):
+def _call_function_sync_process(name, plugin_name, req_id, args, kwargs,state, plugin_variables):
     global _req_id
     _req_id.set(req_id)
+    api_obj = _plugin_ctx.get()
+    api_obj.state = state
+    api_obj.plugin_variables = plugin_variables
+    # _plugin_ctx.set(api_obj)
     func = get_function_entry(name, plugin_name)["pointer"]
+
     return_val = func(*args, **kwargs)
-    return return_val
+    return api_obj.state, api_obj.plugin_variables, return_val
 
 
 def _call_function_sync(func, api_obj, args, kwargs, ):

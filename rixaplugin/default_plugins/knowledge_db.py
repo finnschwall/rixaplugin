@@ -10,7 +10,7 @@ import rixaplugin
 
 knowledge_logger = logging.getLogger("rixa.knowledge_db")
 
-gpu_distribution = rixaplugin.variables.PluginVariable("GPU_DISTRIBUTION", str, default=None)
+gpu_distribution = rixaplugin.variables.PluginVariable("GPU_DISTRIBUTION", str, default="")
 from rixaplugin.internal import api as internal_api
 
 from rixaplugin import _memory
@@ -24,7 +24,8 @@ settings.ACCEPT_REMOTE_PLUGINS = 0
 def worker_init():
     import multiprocessing
     rixaplugin.worker_context.proc_id = -1
-    if gpu_distribution.get() is not None:
+
+    if gpu_distribution.get():
         import multiprocessing
         try:
             proc_id = int(multiprocessing.current_process().name.replace("ForkProcess-", ""))
@@ -64,6 +65,10 @@ def query_rag_db(queries, n_results=6):
     However make clear that your answer is not based on specific documents and may not be accurate.
 
     Always query the RAG database, before writing any text!
+    Do not offer querying this to the user!!!
+    The user should simply see your text with citations. Unless specifically requested you do not mention the RAG database.
+    If a user asks something that may be enhanced using the RAG database, just call it and then make your answer.
+    The user does not care about the RAG database, they care about the answer to their question!!!
 
     Use the provided document ID and double curly brackets to cite e.g. {{6641}}.
     The citations will be replaced with links to the respective documents and various information about the document.
@@ -126,7 +131,7 @@ def query_rag_db(queries, n_results=6):
             context_str += f"CONTENT: {i['content']}"
             used_results.append(i)
     user_api = internal_api.get_api()
-    user_api.plugin_variables["USED_RESULTS"] = used_results
+    user_api.state["USED_RESULTS"] = used_results
     return context_str
 
 

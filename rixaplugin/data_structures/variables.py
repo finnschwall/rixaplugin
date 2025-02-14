@@ -10,7 +10,7 @@ variable_log = logging.getLogger("rixa.variables")
 
 class PluginVariable:
     def __init__(self, name: str, var_type=str, default=None, options: list = None, user_facing_name: str = None,
-                 readable: Scope = Scope.LOCAL, writable: Scope = Scope.LOCAL):
+                 readable: Scope = Scope.LOCAL, writable: Scope = Scope.LOCAL, custom_cast = None, description: str = None):
         """
         Define a variable that is controlled by the plugin system.
 
@@ -23,15 +23,20 @@ class PluginVariable:
         :param options: List of possible values for the variable. Used for frontend dropdowns
         :param readable: Who gets read access. Also controls if sent over network
         :param writable: Who gets write access. WARNING: Users input will not be validated. Hence always check when not using options.
+        :param custom_cast: Custom function to cast the values. Takes one argument (raw string from .ini file) and must return var_type(s)
         """
         self.name = name
-        self.default = _config(name, default=default, cast=var_type)
+        if custom_cast:
+            self.default = _config(name, default=default, cast=custom_cast)
+        else:
+            self.default = _config(name, default=default, cast=var_type)
         self._value = self.default
         self.readable = readable
         self.user_facing_name = user_facing_name if user_facing_name else name
         self.writable = writable
         self.var_type = var_type
         self.options = options
+        self.description = description
         stack = inspect.stack()
         self._plugin_name = stack[1].filename.split("/")[-1].split(".")[0]
         _memory.add_variable(self)

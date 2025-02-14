@@ -87,9 +87,13 @@ def execute_code(code, timeout=30):
         return future.result()
     else:
         process_socket = _api._socket.get()
-        msg = [_api._req_id.get(), "EXECUTE_CODE", code, timeout]
+        api_in_ctx = _api._plugin_ctx.get()
+        msg = [_api._req_id.get(), "EXECUTE_CODE", code, timeout, api_in_ctx.state, api_in_ctx.plugin_variables]
         parsed = pickle.dumps(msg)
         process_socket.send(parsed)
         ret = process_socket.recv()
-        ret = pickle.loads(ret)
+        ret, state, plugin_variables = pickle.loads(ret)
+        api_in_ctx.state = state
+        api_in_ctx.plugin_variables = plugin_variables
+
         return ret

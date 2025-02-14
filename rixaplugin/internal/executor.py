@@ -27,14 +27,14 @@ PMF_DebugLocal = PluginModeFlags.LOCAL | PluginModeFlags.THREAD
 PMF_Server = PluginModeFlags.SERVER | PluginModeFlags.NETWORK | PluginModeFlags.THREAD
 
 
-def handle_return_process(fut, socket=None, identity=None):
+def handle_return_process(fut, socket=None, identity=None, api_obj=None):
     try:
         res = fut.result()
-        socket.send_multipart([identity, pickle.dumps(res)])
+        socket.send_multipart([identity, pickle.dumps([res,api_obj.state, api_obj.plugin_variables])])
     except RemoteException as e:
-        socket.send_multipart([identity, pickle.dumps(e)])
+        socket.send_multipart([identity, pickle.dumps([e,api_obj.state, api_obj.plugin_variables ])])
     except Exception as e:
-        socket.send_multipart([identity, pickle.dumps(e)])
+        socket.send_multipart([identity, pickle.dumps([e,api_obj.state, api_obj.plugin_variables ])])
 
 async def _start_process_server(socket):
     executor = _memory.executor
@@ -51,10 +51,10 @@ async def _start_process_server(socket):
             future.add_done_callback(lambda fut: socket.send_multipart([identity, pickle.dumps(fut.result())]))
         elif message[1] == "EXECUTE_CODE":
             try:
-                future = await execute_code(message[2], proc_api, True, message[3])
+                future = await execute_code(message[2], proc_api, True, message[3], state=message[4], plugin_variables=message[5])
 
                 #future.add_done_callback(lambda fut: socket.send_multipart([identity, pickle.dumps(fut.result())]))
-                future.add_done_callback(lambda fut: handle_return_process(fut, socket, identity))
+                future.add_done_callback(lambda fut: handle_return_process(fut, socket, identity, proc_api))
             except Exception as e:
                 socket.send_multipart([identity, pickle.dumps(e)])
 
@@ -179,19 +179,20 @@ def init_plugin_system(mode=PMF_DebugLocal, num_workers=None, debug=False, max_j
 
 
 async def execute_networked(func_name, plugin_name, plugin_id, args, kwargs, oneway, request_id,
-                            identity, network_adapter, scope):
+                            identity, network_adapter, scope, plugin_variables=None, state=None):
     plugin_entry = get_function_entry(func_name, plugin_id)
-    api_obj = api.RemoteAPI(request_id, identity, network_adapter, scope=scope)
 
+    api_obj = api.RemoteAPI(request_id, identity, network_adapter, scope=scope, plugin_variables=plugin_variables, state=state)
     try:
         fut = await _execute(plugin_entry, args, kwargs, api_obj, return_future=True)
+
     except Exception as e:
         await network_adapter.send_exception(identity, request_id, e)
         return
     try:
         return_val = await fut
         if not oneway:
-            await network_adapter.send_return(identity, request_id, return_val)
+            await network_adapter.send_return(identity, request_id, return_val, state=api_obj.state)
     except Exception as e:
         await network_adapter.send_exception(identity, request_id, e)
 
@@ -201,7 +202,8 @@ async def _execute_code(ast_obj, api_obj):
     async def _code_visitor_callback(entry, args, kwargs):
         fut = await _execute(entry, args, kwargs, api_obj, return_future=True, return_time_estimate=False)
         try:
-            return await asyncio.wait_for(fut, timeout=settings.FUNCTION_CALL_TIMEOUT)
+            ret_var = await asyncio.wait_for(fut, timeout=settings.FUNCTION_CALL_TIMEOUT)
+            return ret_var
         except asyncio.TimeoutError:
             raise Exception(f"Execution of {entry['name']} in {entry['plugin_name']} timed out after {settings.FUNCTION_CALL_TIMEOUT} "
                             f"seconds. This timeout was detected by the FUNCTION_CALLING system."
@@ -222,7 +224,7 @@ async def _execute_code(ast_obj, api_obj):
     return ret_val
 
 
-async def execute_code(code, api_obj=None, return_future=True, timeout=30, scope=None):
+async def execute_code(code, api_obj=None, return_future=True, timeout=30, scope=None, state=None, plugin_variables=None):
     """Execute (a string) as code in the plugin system.
 
     This is not meant for normal programming, as functionality is severely limited.
@@ -234,6 +236,10 @@ async def execute_code(code, api_obj=None, return_future=True, timeout=30, scope
         api_obj = api.BaseAPI(0, 0)
         if scope:
             api_obj.scope = scope
+    if state:
+        api_obj.state = state
+    if plugin_variables:
+        api_obj.plugin_variables = plugin_variables
 
     ast_obj = ast.parse(code)
 
@@ -244,6 +250,13 @@ async def execute_code(code, api_obj=None, return_future=True, timeout=30, scope
     else:
         await supervise_future(future)
 
+
+async def _process_api_state(fut, api_obj):
+    results = await fut
+    state, plugin_variables, return_val = results
+    api_obj.state = state
+    api_obj.plugin_variables = plugin_variables
+    return return_val
 
 async def execute_sync(entry, args, kwargs, api_obj, return_future):
     """
@@ -266,11 +279,16 @@ async def execute_sync(entry, args, kwargs, api_obj, return_future):
     else:
         fun = functools.partial(api._call_function_sync_process, entry["name"], entry["plugin_id"],
                                 api_obj.request_id,
-                                args, kwargs)
+                                args, kwargs, api_obj.state, api_obj.plugin_variables)
     future = _memory.event_loop.run_in_executor(_memory.executor,
                                                 fun, api_obj)  # _memory.executor.submit(pointer, *args, **kwargs)
     if return_future:
-        return future
+        if _memory.mode & PluginModeFlags.PROCESS:
+            wrapped_future = asyncio.ensure_future(_process_api_state(future, api_obj))
+            return wrapped_future
+        else:
+            return future
+        # return future
     else:
         await supervise_future(future)
 
@@ -321,7 +339,6 @@ async def _execute(plugin_entry, args=(), kwargs={}, api_obj=None, return_future
         if not _memory.plugins[plugin_entry["id"]]["is_alive"]:
             raise RemoteOfflineException(f"{plugin_entry['plugin_name']} is currently unreachable.")
         _memory.plugins[plugin_entry["id"]]["active_tasks"] += 1
-
         fut, est = await plugin_entry["remote_origin"].call_remote_function(plugin_entry, api_obj, args, kwargs,
                                                                             not return_future,
                                                                             return_time_estimate=True)
@@ -512,45 +529,3 @@ def fake_function(func_name, plugin_name, *args, **kwargs):
     print(f"Fake function {func_name} called with {args} and {kwargs}")
     # await execute(func_name, plugin_name, args, kwargs)
 
-
-# class EmptyModule(types.ModuleType):
-#     """
-#     A custom module that returns an empty module for any attribute access.
-#     """
-#     # def __init__(self, name):
-#     #     super().__init__(name)
-#     #     self._is_empty=True
-#     def __getattr__(self, name):
-#         print("WTF", name)
-#         if name.startswith("__") or name.startswith("_") or not self._is_empty:
-#             return super().__getattr__(name)
-#         return types.ModuleType(name)
-
-# sys.modules["rixaplugin.remote"] = EmptyModule("rixaplugin.remote")
-
-# def on_remote_plugin_import(name):
-#     module = types.ModuleType(name)#EmptyModule(name)
-#     module.__file__ = f"{name}.py"
-#     module.__doc__ = "Auto-generated module for RPC remote plugin"
-#     sys.modules[name] = module
-#     return module
-#
-# def install_import_hook():
-#     original_import = __builtins__['__import__']
-#     def custom_import(name, globals=None, locals=None, fromlist=(), level=0):
-#
-#         if name.startswith('remote_'):
-#             print(name)
-#             module = on_remote_plugin_import(name)
-#             _memory.remote_dummy_modules[name] = module
-#             return module
-#             print("A")
-#             if name == "rixaplugin.remote":
-#                 return on_remote_plugin_import(name)
-#             module = types.ModuleType(name)#on_remote_plugin_import(name)
-#
-#             return module
-#         return original_import(name, globals, locals, fromlist, level)
-#     __builtins__['__import__'] = custom_import
-#
-# install_import_hook()

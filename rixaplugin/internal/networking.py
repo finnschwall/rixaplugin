@@ -131,8 +131,10 @@ class NetworkAdapter:
         else:
             await self.con.send(data)
 
-    async def send_return(self, identity, request_id, ret):
+    async def send_return(self, identity, request_id, ret, state=None):
         ret = {"HEAD": HeaderFlags.FUNCTION_RETURN, "return": ret, "request_id": request_id}
+        if state:
+            ret["state"] = state
         try:
             raw = msgpack.packb(ret,default=encode_custom)
         except Exception as e:
@@ -178,7 +180,9 @@ class NetworkAdapter:
             "oneway": one_way,
             "args": args,
             "kwargs": kwargs,
-            "scope" : api_obj.scope
+            "scope" : api_obj.scope,
+            "plugin_variables": api_obj.plugin_variables,
+            "state": api_obj.state
         }
 
         event = asyncio.Event()
@@ -186,26 +190,19 @@ class NetworkAdapter:
 
         future = _memory.event_loop.create_future()
         if not one_way:
-            self.pending_requests[request_id] = future
+            self.pending_requests[request_id] = {"future":future, "api_obj":api_obj}
 
         remote_func_type = plugin_entry["type"]
         await self.send(plugin_entry["remote_id"], message)
         # time estimate is always awaited
         # need to check whether this makes sense or if call without acknowledgement is possible
-        import datetime
-        print(f"{datetime.datetime.now()} - {message['func_name']} - {message['request_id']}")
         answer = await utils.event_wait(event, 3)  # event.wait()
-        print(f"{datetime.datetime.now()} - {message['func_name']} - {message['request_id']}")
         if not answer:
             _memory.plugins[plugin_entry["plugin_id"]]["is_alive"] = False
             try:
                 del self.api_objs[request_id]
             except:
                 pass
-            # if api_obj.is_remote:
-            #     api_obj.network_adapter.send_exception(api_obj.identity, request_id, Exception("Plugin offline"))
-            #     # await self.send_exception(api_obj.remote_id, request_id, Exception("Plugin offline"))
-            # else:
             raise RemoteTimeoutException(
                 f"No acknowledgement for function call. Plugin '{plugin_entry['plugin_name']}' is likely offline",
                 plugin_name=plugin_entry["plugin_name"])
@@ -322,7 +319,7 @@ class NetworkAdapter:
             try:
                 asyncio.create_task(execute_networked(
                     msg["func_name"], msg["plugin_name"], msg["plugin_id"], msg["args"], msg["kwargs"], msg["oneway"],
-                    msg["request_id"], identity, self, msg["scope"]))
+                    msg["request_id"], identity, self, msg["scope"], msg.get("plugin_variables"), msg.get("state")))
                 ret = {"HEAD": HeaderFlags.TIME_ESTIMATE_AND_ACKNOWLEDGEMENT, "request_id": msg["request_id"]}
                 await self.send(identity, ret)
             except FunctionNotFoundException as e:
@@ -352,10 +349,14 @@ class NetworkAdapter:
                     return
                 if "return" in msg:
                     ret_val = msg.get("return")
-                    self.pending_requests[request_id].set_result(ret_val)
+                    if "state" in msg:
+                        self.pending_requests[request_id]["api_obj"].state = msg["state"]
+                    self.pending_requests[request_id]["future"].set_result(ret_val)
                 if "exception" in msg:
                     ret_val = Exception("Something went wrong on the server side.")
-                    self.pending_requests[request_id].set_exception(ret_val)
+                    if "state" in msg:
+                        self.pending_requests[request_id]["api_obj"].state = msg["state"]
+                    self.pending_requests[request_id]["future"].set_exception(ret_val)
                 del self.pending_requests[request_id]
             else:
                 network_log.warning(f"Received response for unknown request id: {request_id}")
@@ -366,7 +367,9 @@ class NetworkAdapter:
             exc = RemoteException(msg['type'], msg['message'], msg['traceback'])
             if request_id in self.pending_requests:
                 if request_id in self.pending_requests:
-                    self.pending_requests[request_id].set_exception(exc)
+                    if "state" in msg:
+                        self.pending_requests[request_id]["api_obj"].state = msg["state"]
+                    self.pending_requests[request_id]["future"].set_exception(exc)
                     del self.pending_requests[request_id]
                 else:
                     network_log.warning(f"Exception occured in one way call: {exc}")
@@ -513,6 +516,7 @@ async def create_and_start_plugin_client(server_address, port=2809, raise_on_con
     except zmq.ZMQError as e:
         raise Exception(f"Failed to connect to {server_address}:{port}\n{e}")
     future = _memory.event_loop.create_task(client.listen())
+    network_log.info(f"Client connected to {server_address}:{port}")
     if return_future:
         return client, future
     else:

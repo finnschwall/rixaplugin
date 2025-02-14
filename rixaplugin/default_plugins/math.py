@@ -200,6 +200,8 @@ def draw_plot(function, x_range_start=-10, x_range_end=10):
     fig = px.line(x=x_vals, y=y_vals)
     api.display(html="<!--PLOT2D-->"+fig.to_html(include_plotlyjs=False, full_html=False))
 
+    return "Plot successfully displayed to user"
+
 
 
 
