@@ -197,7 +197,7 @@ async def execute_networked(func_name, plugin_name, plugin_id, args, kwargs, one
         await network_adapter.send_exception(identity, request_id, e)
 
 
-async def _execute_code(ast_obj, api_obj):
+async def _execute_code(code_str, api_obj):
 
     async def _code_visitor_callback(entry, args, kwargs):
         fut = await _execute(entry, args, kwargs, api_obj, return_future=True, return_time_estimate=False)
@@ -211,16 +211,19 @@ async def _execute_code(ast_obj, api_obj):
                             f"You will potentially deadlock the system!"
                             f"Failure to comply will lead to ban of user that initiated request.")
         # return await fut
-    visitor = python_parsing.CodeVisitor(_code_visitor_callback, _memory.get_functions(api_obj.scope))
 
-    await visitor.visit(ast_obj)
+    ret_val = await python_parsing.execute_str_as_code(code_str, _code_visitor_callback, _memory.get_functions(api_obj.scope))
 
-    if "__call_res__" in visitor.variables:
-        ret_val = visitor.variables["__call_res__"]
-    else:
-        ret_val = "NO RETURN VALUE"
-    if not visitor.least_one_call:
-        raise NoEffectException("Did you miss a function call? Or parentheses? No calls were detected in the code.")
+    # visitor = python_parsing.CodeVisitor(_code_visitor_callback, _memory.get_functions(api_obj.scope))
+    #
+    # await visitor.visit(ast_obj)
+    #
+    # if "__call_res__" in visitor.variables:
+    #     ret_val = visitor.variables["__call_res__"]
+    # else:
+    #     ret_val = "NO RETURN VALUE"
+    # if not visitor.least_one_call:
+    #     raise NoEffectException("Did you miss a function call? Or parentheses? No calls were detected in the code.")
     return ret_val
 
 
@@ -241,9 +244,10 @@ async def execute_code(code, api_obj=None, return_future=True, timeout=30, scope
     if plugin_variables:
         api_obj.plugin_variables = plugin_variables
 
-    ast_obj = ast.parse(code)
+    # Quickly check if code is even valid Python
+    ast.parse(code)
 
-    future = asyncio.create_task(_execute_code(ast_obj, api_obj))
+    future = asyncio.create_task(_execute_code(code, api_obj))
 
     if return_future:
         return future

@@ -10,8 +10,8 @@
 <title>rixaplugin.data_structures package | RIXA plugin system 0.1-alpha1 documentation</title>
 <meta content="rixaplugin.data_structures package | RIXA plugin system 0.1-alpha1 documentation" property="og:title"/>
 <meta content="rixaplugin.data_structures package | RIXA plugin system 0.1-alpha1 documentation" name="twitter:title"/>
-<link href="../_static/pygments.css?v=8d216cef" rel="stylesheet" type="text/css"/>
-<link href="../_static/theme.css?v=8958d2b4" rel="stylesheet" type="text/css"/>
+<link href="../_static/pygments.css?v=e72c8e07" rel="stylesheet" type="text/css"/>
+<link href="../_static/theme.css?v=42baaae4" rel="stylesheet" type="text/css"/>
 <link href="../_static/bugfix.css?v=ad93a5b4" rel="stylesheet" type="text/css"/>
 <link href="../search.html" rel="search" title="Search"/>
 <link href="../genindex.html" rel="index" title="Index"/>
@@ -30,7 +30,7 @@
       if (!userPreference) {localStorage.setItem('darkMode', mode)}
     </script>
 </head>
-<body :class="{ 'overflow-hidden': showSidebar }" class="min-h-screen font-sans antialiased bg-background text-foreground" x-data="{ showSidebar: false }">
+<body :class="{ 'overflow-hidden': showSidebar }" class="min-h-screen font-sans antialiased bg-background text-foreground" x-data="{ showSidebar: false, showScrollTop: false }">
 <div @click.self="showSidebar = false" class="fixed inset-0 z-50 overflow-hidden bg-background/80 backdrop-blur-sm md:hidden" x-cloak="" x-show="showSidebar"></div><div class="relative flex flex-col min-h-screen" id="page"><a class="absolute top-0 left-0 z-[100] block bg-background p-4 text-xl transition -translate-x-full opacity-0 focus:translate-x-0 focus:opacity-100" href="#content">
       Skip to content
     </a><header class="sticky top-0 z-40 w-full border-b shadow-sm border-border supports-backdrop-blur:bg-background/60 bg-background/95 backdrop-blur"><div class="container flex items-center h-14">
@@ -74,6 +74,7 @@
 <a href="../index.html">Home</a>
 </nav><nav class="table w-full min-w-full my-6 lg:my-8">
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../plugin_tutorial.html">Plugin programming quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../auth_system.html">Authentication and security</a></li>
 <li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="modules.html">rixaplugin<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul class="current" x-show="expanded">
 <li class="toctree-l2 current"><a class="reference internal" href="rixaplugin.html">rixaplugin package</a></li>
@@ -289,7 +290,11 @@
 <dt class="sig sig-object py" id="rixaplugin.data_structures.enums.Scope">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">rixaplugin.data_structures.enums.</span></span><span class="sig-name descname"><span class="pre">Scope</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.enums.Scope" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.enums.Scope'">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#rixaplugin.data_structures.enums.AutoNumber" title="rixaplugin.data_structures.enums.AutoNumber"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoNumber</span></code></a></p>
-<p>An enumeration.</p>
+<p>Enum for defining the scope of a variable</p>
+<p>Scope is inclusive i.e. USER is both USER and LOCAL. LOCAL however is just local
+USER: Maximum scope, can be set or read by the user
+SERVER: Can be set or read by the server i.e. a remote config file
+LOCAL: No info will be sent over the network. However, value may still be retrieved from a config file</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="rixaplugin.data_structures.enums.Scope.LOCAL">
 <span class="sig-name descname"><span class="pre">LOCAL</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#rixaplugin.data_structures.enums.Scope.LOCAL" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.enums.Scope.LOCAL'">¶</a></dt>
@@ -359,8 +364,12 @@
 <span id="rixaplugin-data-structures-variables-module"></span><h2>rixaplugin.data_structures.variables module<a class="headerlink" href="#module-rixaplugin.data_structures.variables" title="Link to this heading" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#module-rixaplugin.data_structures.variables'">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="rixaplugin.data_structures.variables.PluginVariable">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">rixaplugin.data_structures.variables.</span></span><span class="sig-name descname"><span class="pre">PluginVariable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">var_type=&lt;class</span> <span class="pre">'str'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">readable=Scope.LOCAL</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">writable=Scope.LOCAL</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.variables.PluginVariable" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.variables.PluginVariable'">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">rixaplugin.data_structures.variables.</span></span><span class="sig-name descname"><span class="pre">PluginVariable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">var_type=&lt;class</span> <span class="pre">'str'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">options:</span> <span class="pre">list</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user_facing_name:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">readable:</span> <span class="pre">~rixaplugin.data_structures.enums.Scope</span> <span class="pre">=</span> <span class="pre">LOCAL</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">writable:</span> <span class="pre">~rixaplugin.data_structures.enums.Scope</span> <span class="pre">=</span> <span class="pre">LOCAL</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_cast=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.variables.PluginVariable" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.variables.PluginVariable'">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="rixaplugin.data_structures.variables.PluginVariable.from_dict">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.variables.PluginVariable.from_dict" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.variables.PluginVariable.from_dict'">¶</a></dt>
+<dd></dd></dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="rixaplugin.data_structures.variables.PluginVariable.get">
 <span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.variables.PluginVariable.get" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.variables.PluginVariable.get'">¶</a></dt>
@@ -368,6 +377,10 @@
 <dl class="py method">
 <dt class="sig sig-object py" id="rixaplugin.data_structures.variables.PluginVariable.set">
 <span class="sig-name descname"><span class="pre">set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.variables.PluginVariable.set" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.variables.PluginVariable.set'">¶</a></dt>
+<dd></dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="rixaplugin.data_structures.variables.PluginVariable.to_dict">
+<span class="sig-name descname"><span class="pre">to_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#rixaplugin.data_structures.variables.PluginVariable.to_dict" title="Link to this definition" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#rixaplugin.data_structures.variables.PluginVariable.to_dict'">¶</a></dt>
 <dd></dd></dl>
 </dd></dl>
 </section>
@@ -450,8 +463,10 @@
 </li>
 <li><a :data-current="activeSection === '#module-rixaplugin.data_structures.variables'" class="reference internal" href="#module-rixaplugin.data_structures.variables">rixaplugin.data_structures.variables module</a><ul>
 <li><a :data-current="activeSection === '#rixaplugin.data_structures.variables.PluginVariable'" class="reference internal" href="#rixaplugin.data_structures.variables.PluginVariable"><code class="docutils literal notranslate"><span class="pre">PluginVariable</span></code></a><ul>
+<li><a :data-current="activeSection === '#rixaplugin.data_structures.variables.PluginVariable.from_dict'" class="reference internal" href="#rixaplugin.data_structures.variables.PluginVariable.from_dict"><code class="docutils literal notranslate"><span class="pre">PluginVariable.from_dict()</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.data_structures.variables.PluginVariable.get'" class="reference internal" href="#rixaplugin.data_structures.variables.PluginVariable.get"><code class="docutils literal notranslate"><span class="pre">PluginVariable.get()</span></code></a></li>
 <li><a :data-current="activeSection === '#rixaplugin.data_structures.variables.PluginVariable.set'" class="reference internal" href="#rixaplugin.data_structures.variables.PluginVariable.set"><code class="docutils literal notranslate"><span class="pre">PluginVariable.set()</span></code></a></li>
+<li><a :data-current="activeSection === '#rixaplugin.data_structures.variables.PluginVariable.to_dict'" class="reference internal" href="#rixaplugin.data_structures.variables.PluginVariable.to_dict"><code class="docutils literal notranslate"><span class="pre">PluginVariable.to_dict()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -465,14 +480,14 @@
 </div><footer class="py-6 border-t border-border md:py-0">
 <div class="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
 <div class="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
-<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2024, Finn Schwall, Fraunhofer IOSB Built with <a class="font-medium underline underline-offset-4" href="https://www.sphinx-doc.org" rel="noreferrer">Sphinx 7.2.6</a></p>
+<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2024, Finn Schwall, Fraunhofer IOSB Built with <a class="font-medium underline underline-offset-4" href="https://www.sphinx-doc.org" rel="noreferrer">Sphinx 8.1.3</a></p>
 </div>
 </div>
 </footer>
 </div>
 <script src="../_static/documentation_options.js?v=33564f70"></script>
-<script src="../_static/doctools.js?v=888ff710"></script>
+<script src="../_static/doctools.js?v=9bcbadda"></script>
 <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
-<script defer="defer" src="../_static/theme.js?v=8dc3ddfe"></script>
+<script defer="defer" src="../_static/theme.js?v=073f68d9"></script>
 </body>
 </html>

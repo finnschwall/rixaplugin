@@ -173,7 +173,7 @@ def draw_plot_3D(function, xstart=-5, xend=5, ystart=-5,yend=5):
 
 
 @plugfunc()
-def draw_plot(function, x_range_start=-10, x_range_end=10):
+def draw_plot(function, x_range_start=-10, x_range_end=10, x_label="x", y_label="y", plot_title=None):
     """
     Draw a plot of a function that depends on x
 
@@ -197,7 +197,7 @@ def draw_plot(function, x_range_start=-10, x_range_end=10):
 
     func = lambdify(x, y)
     y_vals = [func(val) for val in x_vals]
-    fig = px.line(x=x_vals, y=y_vals)
+    fig = px.line(x=x_vals, y=y_vals, title=plot_title, labels={x_label: x_label, y_label: y_label})
     api.display(html="<!--PLOT2D-->"+fig.to_html(include_plotlyjs=False, full_html=False))
 
     return "Plot successfully displayed to user"
