@@ -1,5 +1,6 @@
 import os.path
 import pickle
+import time
 
 from rixaplugin.decorators import plugfunc, worker_init
 from rixaplugin import worker_context as ctx
@@ -138,8 +139,12 @@ def query_rag_db(queries, n_results=6):
 @plugfunc()
 def query_db(query, collection="default", n_results=5, max_distance=0.45, max_chars=5000):
     print("Querying db", query[:5], "....")
+    start_time = time.time()
     results = database.query_inverted(query, n_results=n_results, collection=collection,
                                       max_distance=max_distance, maximum_chars=max_chars)
+    end_time = time.time()
+    with open("query_time.txt", "a") as f:
+        f.write(f"{end_time - start_time:.2f}\n")
     # import random, time
     # time.sleep(random.randint(1, 3))
     return results

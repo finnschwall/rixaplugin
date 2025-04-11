@@ -58,12 +58,17 @@ Default port on which the plugin server will listen.
 """
 
 USE_AUTH_SYSTEM = config("USE_AUTH_SYSTEM", default=True, cast=bool)
+"""
+Use key based authentification system. Disabling allows for connection from any client
+"""
 AUTH_KEY_LOC = config("AUTH_KEY_LOC", default=None)
 if not AUTH_KEY_LOC:
     AUTH_KEY_LOC = os.path.join(WORKING_DIRECTORY, "auth_keys")
 
 
 DEBUG = config("DEBUG", default=True, cast=bool)
+"""Debug mode
+"""
 VERBOSE_REQUEST_ID = config("VERBOSE_REQUEST_ID", default=False, cast=bool)
 """Turns the request id from a hash to a readable string. This is useful for debugging but will lead to collisions.
 """

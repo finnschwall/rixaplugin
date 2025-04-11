@@ -73,12 +73,15 @@ async def run_server(debug):
     await future
 
 
-async def run_client(debug):
+async def run_client(debug, use_process):
     from rixaplugin import init_plugin_system, create_and_start_plugin_client
     from rixaplugin import PluginModeFlags as PMF
     from rixaplugin import settings
     import rixaplugin
-    init_plugin_system(PMF.LOCAL | PMF.THREAD, debug=debug)
+    if use_process:
+        init_plugin_system(PMF.LOCAL | PMF.PROCESS, debug=debug)
+    else:
+        init_plugin_system(PMF.LOCAL | PMF.THREAD, debug=debug)
     client, future = await create_and_start_plugin_client(rixaplugin.settings.PLUGIN_DEFAULT_ADDRESS,
                                                           rixaplugin.settings.PLUGIN_DEFAULT_PORT,
                                                           use_auth=settings.USE_AUTH_SYSTEM,
@@ -137,9 +140,10 @@ def setup_plugin_system(path, address=None, port=None, debug=None):
 @click.option("--address", default="localhost", help="Address of server")
 @click.option("--port", help="Port of server")
 @click.option("--debug", help="Activate debug mode")
-def start_client(path, address=None, port=None, debug=None):
+@click.option("--use-process", help="Run plugin worker in process mode", default=False)
+def start_client(path, address=None, port=None, debug=None, use_process=None):
     setup_plugin_system(path, address, port, debug)
-    asyncio.run(run_client(address))
+    asyncio.run(run_client(address, use_process))
 
 
 @main.command(help="Retrieve all available functions from a server via quick connection")
